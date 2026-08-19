@@ -122,16 +122,18 @@ li {
     margin-bottom: 6px;
 }
 
-/* === ① 写真・画像エリア（黒四角） === */
+/* === 写真・画像エリア（横幅基準で自動調整） === */
 .img-box {
     margin: 25px auto;
     text-align: center;
-    max-width: 550px;
+    max-width: 550px; /* 横幅の最大サイズ */
+    width: 100%;
 }
 
 .img-box .box {
     width: 100%;
-    height: 280px;
+    /* 💡 縦の固定高さを撤廃し、最小の高さだけ確保 */
+    min-height: 180px;
     background-color: #111111;
     border-radius: 6px;
     display: flex;
@@ -141,14 +143,23 @@ li {
     font-family: monospace;
     font-size: 0.9em;
     border: 1px solid #333333;
+    overflow: hidden;
+}
+
+/* 💡 画像が入ったときは横幅100%・縦は自動比率 */
+.img-box .box img {
+    width: 100%;
+    height: auto;       /* 縦幅を画像の比率に合わせて自動決定 */
+    display: block;
+    border-radius: 5px;
 }
 
 .img-box .caption {
     font-size: 0.8em;
     color: var(--sub-text);
     margin-top: 8px;
+    line-height: 1.4;
 }
-
 /* === ② 操作方法・ハイライト枠 === */
 .info-box {
     background: #fdfefe;
