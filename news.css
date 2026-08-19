@@ -126,13 +126,12 @@ li {
 .img-box {
     margin: 25px auto;
     text-align: center;
-    max-width: 550px; /* 横幅の最大サイズ */
+    max-width: 550px;
     width: 100%;
 }
 
 .img-box .box {
     width: 100%;
-    /* 💡 縦の固定高さを撤廃し、最小の高さだけ確保 */
     min-height: 180px;
     background-color: #111111;
     border-radius: 6px;
@@ -144,14 +143,36 @@ li {
     font-size: 0.9em;
     border: 1px solid #333333;
     overflow: hidden;
+    position: relative;
 }
 
-/* 💡 画像が入ったときは横幅100%・縦は自動比率 */
+/* 正常に読み込めた画像 */
 .img-box .box img {
     width: 100%;
-    height: auto;       /* 縦幅を画像の比率に合わせて自動決定 */
+    height: auto;
     display: block;
     border-radius: 5px;
+    position: relative;
+    z-index: 1;
+}
+
+/* 💡 画像が見つからない/壊れている時に黒四角と文字を生成 */
+.img-box .box img::before {
+    content: "[ IMAGE PLACEHOLDER ]";
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    min-height: 180px;
+    background-color: #111111;
+    color: #666666;
+    font-family: monospace;
+    font-size: 0.9em;
+    z-index: 2;
 }
 
 .img-box .caption {
@@ -160,6 +181,9 @@ li {
     margin-top: 8px;
     line-height: 1.4;
 }
+
+
+
 /* === ② 操作方法・ハイライト枠 === */
 .info-box {
     background: #fdfefe;
