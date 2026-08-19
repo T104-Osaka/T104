@@ -263,49 +263,7 @@
         <div class="stat-card"><div class="stat-label">総探索パターン数</div><div id="total-patterns" class="stat-value">0</div></div>
     </div>
 
-    <div class="purpose-section">
-        <div class="purpose-title">🧪 開発目的</div>
-        <div class="purpose-text">
-            開発動機は主に3つあります<br>
-            1つ目は、以前YouTubeにてぷよつかい大会でぬりかえスキルを使うときに「とにかく大量に塗り替え、潤沢ななぞり消し数に任せて1連鎖で大量に消す」というプレイスタイルを目撃したことです.
-            私としては、パズルゲームなのだから連鎖をしっかり繋げ,盤面のぷよ1つ1つを大切にしたいという思いがあります.
-            そこで、このシミュレータで「連鎖を組むぬりかえ」の良さに気付き、いかに効率的で賢い塗り替え方を考えるかを重視してほしいと考えました.
-            こうすることで、「強いキャラの枚数がランキングに直結する」という考えを薄め、盤面全体を上手く巻き込んだ「美しいぬりかえ方」を探求する楽しみを見出すことで、より深くゲームを楽しめるようになってほしいと思っています.<br>
-            2つ目は、自分のぬりかえ能力がどれほどか知りたいという興味です.
-            ぬりかえキャラを2体入れれば、ぬりかえパターンは8×10^19なので、普通のパソコンで頑張ってシミュレートしてもせいぜい数ppbしか探索できないため、ランダムにパソコンで探索するよりもまだ人が考えた方が点数が良くなるだろうということを検証するためにしています.
-            実際に検証してみたところ、自分が15分考えて188点に対し、プログラムだと10億パターンを60秒でやって174点という結果になり、やはり人間の思考の鋭さを再認識しました.
-            (なお、本来はマルチスレッドによる高速化が可能ですが、自身のWeb実装に関する知見不足によりシングルスレッド動作に留まっており、計算速度は1割程度に低下しています.)<br>
-            3つ目は、テスト期間など忙しい人がとりあえず「そこそこのスコア」を手軽にとれるようにし、ある程度のランキングに入れるようにすることで、ゲームがしたいという欲望を少しでも抑えられるようにするためです.
-            私自身、テスト期間中であっても「5,000位以内には入りたい」という思いから無理にプレイを続けてしまった経験があります. このツールを使うことで、同じような悩みを抱える人の状況を少しでも改善できればと考えています.<br>
-            以上が私の開発動機です.
-        </div>
-    </div>
-
-    <div class="comment-section">
-        <div style="font-size: 1.1em; color: #3498db; font-weight: bold;">💬 掲示板 / フィードバック</div>
-        <textarea id="comment-textarea" name="comment" class="comment-textarea" placeholder="要望やバグ報告があれば、Twitterで #ぷよクエ解析シム などのタグを付けて呟いていただけると助かります. しがない工学部生が学業の合間に作っているものなので、のんびり改善していく予定です.&#10;この掲示板は未完成でまだ使えません. 完成まではTwitterの方でお願いします."></textarea>
-        <div style="text-align: right;"><button class="submit-btn">送信する</button></div>
-    </div>
-
-    <div style="margin: 30px 0; padding: 20px; background-color: #1e1e1e; color: #d4d4d4; border-radius: 8px; font-family: 'Consolas', 'Monaco', monospace; border: 1px solid #333;">
-        <p style="color: #6a9955; margin-bottom: 15px;">/** 💡 ツールがお役に立ちましたら **/</p>
-        <p style="margin: 8px 0;">
-            <span style="color: #569cd6;">if</span> (tool_is_useful) {
-        </p>
-        <p style="margin: 8px 0 8px 20px;">
-            <span style="color: #ce9178;">give_feedback</span>(<a href="https://twitter.com/intent/tweet?hashtags=ぷよクエ解析シム" target="_blank" style="color: #4fc1ff; text-decoration: underline;">"#ぷよクエ解析シム"</a>); <span style="color: #6a9955">// ハッシュタグ付きポスト作成リンク</span>
-        </p>
-        <p style="margin: 8px 0 8px 20px;">
-            <span style="color: #ce9178;">follow_developer</span>(<a href="https://twitter.com/intent/follow?screen_name=RepuyoRe" target="_blank" style="color: #4fc1ff; text-decoration: underline;">"@RepuyoReをフォロー"</a>); <span style="color: #6a9955">// フォローリンク</span>
-        </p>
-        <p style="margin: 8px 0 8px 20px;">
-            <span style="color: #ce9178;">send_resource</span>(<a href="https://www.amazon.jp/hz/wishlist/ls/3PSSCX0U53CZP?ref_=wl_share" target="_blank" rel="noopener noreferrer" style="color: #4fc1ff; text-decoration: underline;">"Amazon_Wishlist"</a>); <span style="color: #6a9955">// Amazon 欲しいものリスト</span>
-        </p>
-        <p style="margin: 8px 0;">
-            }
-        </p>
-        <p style="font-size: 0.8em; color: #888; margin-top: 15px; text-align: right;">System Status: Optimization complete.</p>
-    </div>
+    
 
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
@@ -547,8 +505,8 @@
         const inputs = document.querySelectorAll('.input-field');
         const reserve12Val = inputs[35] ? inputs[35].value.trim() : "";
 
-        const writeMatch = reserve12Val.match(/^ReV9A_w([0-9])$/);
-        const readMatch  = reserve12Val.match(/^ReV9A_r([0-9])$/);
+        const writeMatch = reserve12Val.match(/^w_([0-9])$/);
+        const readMatch  = reserve12Val.match(/^r_([0-9])$/);
 
         // 📥 【読み込みのみ実行】
         if (readMatch) {
