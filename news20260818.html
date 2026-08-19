@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>【アップデート】連鎖シミュレーション（コマ送り確認）機能を追加しました | ReV9Aの部屋</title>
+    <!-- 🚀 ここで news.css を読み込む -->
+    <link rel="stylesheet" href="news.css">
+</head>
+<body>
+
+    <!-- ヘッダー -->
+    <header>
+        <div class="wrap">
+            <a href="index.html" class="site-title">ReV9Aの部屋</a>
+        </div>
+    </header>
+
+    <main class="wrap">
+        <div class="nav-back">
+            <a href="index.html">← ポータルへ戻る</a>
+        </div>
+
+        <article class="article-container">
+            <!-- 🏷️ タグと日付 -->
+            <div class="post-meta">
+                <span class="post-tag">UPDATE</span>
+                <time>2026.08.18</time>
+            </div>
+
+            <!-- 📝 記事タイトル -->
+            <h1 class="entry-title">【アップデート】連鎖シミュレーション（コマ送り確認）機能を追加しました</h1>
+
+            <p>
+                「ぷよクエ解析シミュレータ」の機能改善として、探索完了後に<strong>「どのようにぷよが消え、連鎖が繋がっていくか」を1手ずつステップ再生できるコマ送りプレイヤー機能</strong>を実装しました。
+            </p>
+
+            <!-- 🖼️ 写真・画像エリア（class="img-box" で囲むだけ） -->
+            <div class="img-box">
+                <div class="box">[ IMAGE PLACEHOLDER ]</div>
+                <div class="caption">▲ 実装された連鎖シミュレーションプレイヤーのUI</div>
+            </div>
+
+            <h2>1. 機能追加の背景</h2>
+            <p>
+                従来のシミュレータでは、探索結果として「ぬりかえ後の完成盤面」と「最初になぞる位置」のみを表示していました。しかし、複雑な連鎖においては「どのタイミングでボーナスエリアぷよが消えているのか」が直感的に分かりにくいという課題がありました。
+            </p>
+
+            <h2>2. 操作方法</h2>
+            <p>
+                探索を実行して最高得点が見つかると、画面下部のプレイヤーエリアが自動的に更新されます。
+            </p>
+
+            <!-- 💡 操作方法・ハイライト枠（class="info-box" で囲むだけ） -->
+            <div class="info-box">
+                <strong>💡 コントローラーの操作方法</strong><br>
+                ・<strong>「進む ▶」</strong>: なぞり消し ➔ ぷよ落下 ➔ 各連鎖消滅 ➔ NEXT補充 を1コマずつ進めます。<br>
+                ・<strong>「◀ 戻る」</strong>: 1つ前の盤面状態に巻き戻します。<br>
+                ・<strong>「🔄 最初に戻す」</strong>: 塗り替え直後の初期盤面にリセットします。
+            </div>
+
+            <!-- 🖼️ 写真・画像エリア 2 -->
+            <div class="img-box">
+                <div class="box">[ IMAGE PLACEHOLDER ]</div>
+                <div class="caption">▲ 連鎖途中の得点加算とNEXTぷよ落下のコマ送り画面</div>
+            </div>
+
+            <h2>3. C言語エンジンとの完全同期</h2>
+            <p>
+                コマ送り再生では、ハートぷよの巻き込み消去や各列ごとのNEXT落下キュー管理など、C言語側のアルゴリズムと100%同一の挙動を再現しています。
+            </p>
+
+            <!-- 🚀 シミュレータを開くリンク（class="sim-btn" で置くだけ） -->
+            <div class="btn-area">
+                <a href="puyo-sim.html" class="sim-btn">🚀 シミュレータを開いて試す</a>
+            </div>
+        </article>
+    </main>
+
+    <!-- フッター -->
+    <footer>
+        <div class="wrap">
+            <div class="footer-links">
+                <a href="https://twitter.com/intent/follow?screen_name=RepuyoRe" target="_blank" rel="noopener noreferrer">🐦 @RepuyoReをフォロー</a>
+                <span>|</span>
+                <a href="https://twitter.com/intent/tweet?hashtags=ぷよクエ解析シム" target="_blank" rel="noopener noreferrer">💬 #ぷよクエ解析シム でポスト</a>
+                <span>|</span>
+                <a href="https://www.amazon.jp/hz/wishlist/ls/3PSSCX0U53CZP?ref_=wl_share" target="_blank" rel="noopener noreferrer">🎁 Amazon 欲しいものリスト</a>
+            </div>
+            <p class="copyright">© 2026 ReV9Aの部屋 All Rights Reserved.</p>
+        </div>
+    </footer>
+
+</body>
+</html>
