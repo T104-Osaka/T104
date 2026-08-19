@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1280">
+    <meta name="google-site-verification" content="XqiRFYjk2fmL0zv0Vy97fa-V4dXTdfuelZ0ihliqpjA" />
+    
+    <title>ぷよクエ解析シミュレータ - ぬりかえ・なぞり消し最適解の自動計算</title>
+    <meta name="description" content="ぷよクエの盤面を解析し、ぬりかえの局所最適解を算出します。ぷよつかい大会の攻略に。">
+    <meta name="keywords" content="ぷよクエ解析シミュレータ,ぷよつかい大会,ぷよクエ,シミュレータ,ぬりかえ,ぷよぷよクエスト,計算,スコア,解析,なぞり消し,連鎖,最適解">
+    
+    <meta property="og:title" content="ぷよクエ解析シミュレータ">
+    <meta property="og:description" content="ぬりかえの正解を導き出します。">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary">
+
+    <style>
+        /* 基本デザイン */
+        body { background: linear-gradient(135deg, #2c3e50 0%, #000000 100%); color: white; font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 20px; line-height: 1.3; min-height: 100vh; }
+        h1 { color: #f1c40f; text-shadow: 2px 2px #d35400; font-size: 1.8em; text-align: center; margin-bottom: 20px; }
+        .usage-section { background-color: rgba(52, 73, 94, 0.8); padding: 15px; border-radius: 10px; border-left: 6px solid #f1c40f; max-width: 1400px; margin: 0 auto 20px auto; font-size: 0.85em; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .wrapper { display: flex; gap: 30px; justify-content: center; max-width: 1800px; margin: 0 auto; align-items: flex-start; }
+        
+        /* サイド入力エリア (380px固定) */
+        .side-input { flex: 0 0 380px; background-color: #34495e; padding: 15px; border-radius: 10px; border: 1px solid #7f8c8d; box-shadow: 0 4px 15px rgba(0,0,0,0.3); box-sizing: border-box; }
+        
+        /* 3列構成 */
+        .input-grid { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            grid-template-rows: repeat(12, 1fr); 
+            grid-auto-flow: column; 
+            column-gap: 8px; 
+            row-gap: 6px; 
+        }
+        .input-row { display: flex; align-items: center; justify-content: space-between; }
+        
+        /* 幅調整 */
+        .input-label { width: 45px; text-align: right; margin-right: 4px; font-size: 10px; color: #bdc3c7; white-space: nowrap; overflow: hidden; }
+        .input-field { width: 62px; height: 22px; font-size: 12px; text-align: center; border-radius: 4px; border: 1px solid #bdc3c7; background: #ecf0f1; padding: 0; }
+        
+        /* 最高得点表示エリア */
+        .best-score-container { 
+            margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px; 
+            border: 2px solid #f1c40f; text-align: center; box-shadow: inset 0 0 10px rgba(241, 196, 15, 0.2);
+        }
+        .best-score-label { font-size: 0.8em; color: #f1c40f; font-weight: bold; margin-bottom: 5px; }
+        .best-score-value { font-size: 2em; font-weight: bold; color: #fff; text-shadow: 0 0 10px #f1c40f; font-family: 'Courier New', monospace; }
+
+        /* プログレスバー */
+        .progress-outer { 
+            width: 100%; height: 18px; background: #000; border-radius: 4px; margin-top: 15px; 
+            overflow: hidden; display: none; border: 2px solid #39ff14; 
+            box-shadow: 0 0 10px rgba(57, 255, 20, 0.5); position: relative;
+        }
+        .progress-inner { 
+            width: 100%; height: 100%; background: #39ff14; transform: scaleX(0); transform-origin: left; 
+            background-image: repeating-linear-gradient(45deg, rgba(57, 255, 20, 0.3) 25%, transparent 25%, transparent 50%, rgba(57, 255, 20, 0.3) 50%, rgba(57, 255, 20, 0.3) 75%, transparent 75%, transparent);
+            background-size: 30px 30px; animation: move-stripes 1s linear infinite; 
+        }
+        @keyframes growBar { from { transform: scaleX(0); } to { transform: scaleX(0.98); } }
+        @keyframes move-stripes { from { background-position: 0 0; } to { background-position: 30px 0; } }
+        
+        /* メイン表示エリア */
+        .main-display { display: flex; flex-direction: column; gap: 25px; }
+        .display-row { display: flex; gap: 25px; align-items: flex-end; }
+        .board-wrapper { text-align: center; display: flex; flex-direction: column; align-items: flex-start; }
+        .board-title { font-size: 0.85em; color: #ecf0f1; margin-bottom: 4px; border-left: 4px solid #3498db; padding-left: 8px; font-weight: bold; }
+        .next-puyo-row { display: flex; margin-left: 48px; gap: 3px; margin-bottom: 8px; }
+        .next-puyo-cell { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; border: 1px solid rgba(127, 140, 141, 0.4); background-color: rgba(236, 240, 241, 0.05); box-shadow: inset 0 0 5px rgba(0,0,0,0.5); color: white; text-shadow: 1px 1px 2px #000; }
+        .board-container { background-color: #2c3e50; padding: 8px; border-radius: 8px; border: 2px solid #7f8c8d; display: inline-block; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+        .grid { display: grid; grid-template-columns: 45px repeat(8, 32px); gap: 3px; }
+        .cell { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; position: relative; }
+        .data-cell { background-color: rgba(236, 240, 241, 0.05); border-radius: 50%; border: 1px solid rgba(127, 140, 141, 0.4); color: #fff; text-shadow: 1px 1px 2px #000; }
+        .header-cell { color: #f1c40f; font-size: 11px; font-weight: bold; background-color: rgba(0,0,0,0.4); border-radius: 4px; }
+        .origin-cell { width: 45px; font-size: 10px; color: #bdc3c7; background-color: rgba(0,0,0,0.5); }
+        .trace-container { width: 100%; min-height: 40px; margin-bottom: 10px; background: rgba(26, 188, 156, 0.2); border: 1px solid #1abc9c; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+        #trace-result { font-size: 1.3em; font-weight: bold; color: #fff; text-shadow: 0 0 5px rgba(255,255,255,0.5); }
+        .btn { background: linear-gradient(to bottom, #e74c3c, #c0392b); color: white; padding: 12px; border: none; border-radius: 30px; cursor: pointer; width: 100%; margin-top: 15px; font-weight: bold; font-size: 1.1em; box-shadow: 0 4px #952d23; }
+        .btn:active { transform: translateY(2px); box-shadow: 0 2px #952d23; }
+        
+        /* 🎬 連鎖シミュレーションプレイヤー用スタイル */
+        .playback-section { max-width: 1400px; margin: 40px auto; background-color: #2c3e50; padding: 25px; border-radius: 12px; border-left: 6px solid #e67e22; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: flex; flex-direction: column; align-items: center; }
+        .playback-header { display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 600px; margin-bottom: 15px; }
+        .playback-title { font-size: 1.2em; color: #e67e22; font-weight: bold; }
+        .playback-status { font-size: 1.1em; color: #f1c40f; font-weight: bold; background: rgba(0,0,0,0.4); padding: 6px 16px; border-radius: 20px; border: 1px solid rgba(241,196,15,0.3); }
+        .playback-controls { display: flex; gap: 15px; margin-top: 20px; }
+        .playback-btn { background: linear-gradient(to bottom, #3498db, #2980b9); color: white; border: none; padding: 10px 24px; border-radius: 20px; font-size: 15px; font-weight: bold; cursor: pointer; box-shadow: 0 3px #1f618d; transition: 0.1s; }
+        .playback-btn:active { transform: translateY(2px); box-shadow: 0 1px #1f618d; }
+        .playback-btn:disabled { background: #7f8c8d; cursor: not-allowed; box-shadow: none; opacity: 0.6; }
+
+        .purpose-section { max-width: 1400px; margin: 40px auto 10px auto; background-color: #34495e; padding: 25px; border-radius: 12px; border-left: 6px solid #3498db; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .purpose-title { font-size: 1.1em; color: #3498db; font-weight: bold; margin-bottom: 10px; }
+        .purpose-text { font-size: 0.95em; line-height: 1.6; color: #ecf0f1; }
+
+        .stats-container { max-width: 1000px; margin: 40px auto 10px auto; display: flex; gap: 20px; justify-content: center; }
+        .stat-card { flex: 1; max-width: 400px; background-color: #34495e; padding: 15px; border-radius: 10px; border-bottom: 3px solid #3498db; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .stat-label { font-size: 0.8em; color: #bdc3c7; margin-bottom: 5px; font-weight: bold; }
+        .stat-value { font-size: 1.6em; font-weight: bold; color: #3498db; font-family: 'Courier New', Courier, monospace; }
+
+        .comment-section { max-width: 1400px; margin: 40px auto; background-color: #34495e; padding: 25px; border-radius: 12px; }
+        .comment-textarea { width: 100%; height: 60px; border-radius: 6px; border: 1px solid #7f8c8d; padding: 10px; box-sizing: border-box; margin: 15px 0; }
+        .submit-btn { background-color: #3498db; color: white; border: none; padding: 10px 25px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        #usage-icon { transition: transform 0.3s ease; display: inline-block; }
+        .usage-section, .wrapper, .purpose-section, .comment-section, .playback-section {
+            max-width: 1280px !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            width: 95% !important;
+        }
+
+        body.is-mobile h1 { font-size: 4.5em; }
+        body.is-mobile .input-label { font-size: 14px; width: 55px; }
+        body.is-mobile .input-field { height: 32px; font-size: 15px; }
+        body.is-mobile .best-score-label { font-size: 20px; }
+        body.is-mobile #trace-result { font-size: 2em; }
+        body.is-mobile .usage-section { font-size: 36px; }
+        body.is-mobile .board-title { font-size: 34px; }
+        body.is-mobile .guide-select { height: 44px; font-size: 36px; border-radius: 12px; }
+
+        .board-container {
+            max-width: 100% !important;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <h1> ぷよクエ解析シミュレータ </h1>
+
+    <div class="usage-section" id="usage-guide">
+        <div onclick="toggleUsage()" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+            <strong>💡 使い方ガイド（クリックで展開/格納）</strong>
+            <span id="usage-icon">▼</span>
+        </div>
+        
+        <div id="usage-content" style="max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; margin-top: 0;">
+            <div style="padding-top: 15px; border-top: 1px solid rgba(241, 196, 15, 0.3); margin-top: 10px;">
+                <br>
+                このシミュレータはぷよぷよクエストのぷよつかい大会におけるぬりかえをシミュレートし、素点が最大となるぬりかえを表示します.<br>
+                <strong>1. 盤面空間の入力定義</strong><br>
+                &emsp;全て半角で入力. 以降の項目も同様.<br>
+                &emsp;・<strong>色情報</strong>: 1:赤, 2:青, 3:緑, 4:黄, 5:紫, 0:ハート で各セルを定義.<br>
+                &emsp;・<strong>プラス状態</strong>: プラスぷよを 1、通常状態を 0 と定義.<br>
+                &emsp;・<strong>ボーナスエリア</strong>: 対象セルを 1、非対象セルを 0 と定義.<br><br>
+                
+                <strong>2. ぬりかえ制約の設定</strong><br>
+                &emsp;ぬりかえ数を属性別に入力.<br>
+                &emsp;・<strong>塗 a</strong>: 
+                <select id="target-a" class="guide-select" onchange="syncGuideText()">
+                    <option value="1" selected>赤</option>
+                    <option value="2">青</option>
+                    <option value="3">緑</option>
+                    <option value="4">黄</option>
+                    <option value="5">紫</option>
+                </select> の最大ぬりかえ数<br>
+                &emsp;・<strong>塗 b</strong>: 
+                <select id="target-b" class="guide-select" onchange="syncGuideText()">
+                    <option value="1">赤</option>
+                    <option value="2" selected>青</option>
+                    <option value="3">緑</option>
+                    <option value="4">黄</option>
+                    <option value="5">紫</option>
+                </select> の最大ぬりかえ数<br><br>
+                
+                <strong>3. 演算時間の設定</strong><br>
+                &emsp;探索アルゴリズムの打ち切り時間(s)を入力. 単位は不要.<br>
+                &emsp;（推奨値: 8s または 128s ）<br><br>
+                
+                <strong>4. 探索空間の定義</strong><br>
+                &emsp;探索深度 <i>k</i> &isin; &naturals;<sub>0</sub> を入力.<br>
+                &emsp;(探索領域<i>V</i> = { (<i>n</i><sub>a</sub>, <i>n</i><sub>b</sub>) | 塗a + 塗b - <i>k</i> <= <i>n</i><sub>a</sub> + <i>n</i><sub>b</sub> <= 塗a + 塗b ; <i>n</i><sub>a</sub> <= 塗a, <i>n</i><sub>b</sub> <= 塗b })<br><br>
+                
+                <strong>5. 演算の実行</strong><br>
+                &emsp;「探索開始」を押下. 計算処理がメインスレッドを占有するため、ブラウザから「応答なし」の警告が出る場合があるが、バックグラウンドでの収束計算は正常に進行中. 処理完了まで待機.<br><br>
+                
+                <strong>6. 解析結果の解釈と実行順序</strong><br>
+                &emsp;出力盤面上部に「なぞり消し座標」および「属性変換の優先順序」を表示.<br>
+                &emsp;・<strong><span id="label-a-name">赤</span>判定時</strong>: 
+                <span id="label-a-color">赤</span>からの変換が<strong>十分条件</strong>. 順序を誤るとぬりかえ時早期連結が発生し、なぞり消し前にオブジェクトが消滅する場合がある.<br>
+                &emsp;・<strong><span id="label-b-name">青</span>判定時</strong>: 
+                <span id="label-b-color">青</span>からの変換が<strong>必要条件</strong>. 順序を誤るとぬりかえ時早期連結が発生し、なぞり消し前にオブジェクトが消滅する.<br><br>
+                    
+                <strong>補足. 予備1によるBE固定（拡張機能）</strong><br>
+                &emsp;「BE保」に <strong>1</strong> を入力して画像解析すると、盤面のぷよ色のみを最新に更新し、ボーナスエリアの配置は現在の設定のまま強制ロック（キープ）. 同じ編成でステージ周回する際に適宜使用.（通常時は 0 または空欄で自動解析.）
+            </div>
+        </div>
+    </div>
+
+    <div class="wrapper">
+        <div class="side-input">
+            <div id="input-section" class="input-grid"></div>
+            <button class="btn" onclick="startSearch()">🚀 探索開始</button>
+            
+            <div class="best-score-container">
+                <div id="progress-container" class="progress-outer">
+                    <div id="progress-bar" class="progress-inner"></div>
+                </div>
+                <div class="best-score-label">今回の最高得点</div>
+                <div id="best-score-display" class="best-score-value">0</div>
+            </div>
+
+            <!-- 📸 入力欄の下にピタッと収まるカメラエリア -->
+            <div style="margin-top: 20px; padding: 12px; background: rgba(44, 62, 80, 0.5); border-radius: 10px; border: 2px dashed #3498db; text-align: center; box-sizing: border-box; width: 100%;">
+                <div id="ocr-preview-area" style="display: none; flex-direction: column; align-items: center; background: #111; padding: 8px; border-radius: 6px; margin-bottom: 12px; border: 1px solid #444;">
+                    <div style="font-size: 10px; color: #bdc3c7; margin-bottom: 4px; font-weight: bold;">✂️ 自動切り取り後の盤面プレビュー</div>
+                    <canvas id="ocr-canvas" style="max-width: 100%; height: auto; border-radius: 4px; display: block;"></canvas>
+                </div>
+
+                <input type="file" id="ocr-file-input" accept="image/*" style="display: none;">
+                <button onclick="document.getElementById('ocr-file-input').click()" style="background: linear-gradient(to bottom, #3498db, #2980b9); color: white; padding: 10px; border: none; border-radius: 20px; cursor: pointer; width: 100%; font-weight: bold; font-size: 14px; box-shadow: 0 4px #1f618d;">
+                    画像を選択して自動入力
+                </button>
+            </div>
+        </div>
+
+        <div class="main-display">
+            <div class="display-row">
+                <div class="board-wrapper">
+                    <div class="board-title">塗り替え前 (入力盤面)</div>
+                    <div id="next-puyo-row" class="next-puyo-row"></div>
+                    <div class="board-container"><div id="original-board" class="grid"></div></div>
+                </div>
+                <div class="board-wrapper">
+                    <div class="trace-container"><div id="trace-result">-- 行 -- 列</div></div>
+                    <div class="board-title">塗り替え後 (解析結果)</div>
+                    <div class="board-container"><div id="output-board" class="grid"></div></div>
+                </div>
+            </div>
+            <div class="display-row">
+                <div class="board-wrapper">
+                    <div class="board-title">塗り替え位置 a</div>
+                    <div class="board-container"><div id="repaint-board-1" class="grid"></div></div>
+                </div>
+                <div class="board-wrapper">
+                    <div class="board-title">塗り替え位置 b</div>
+                    <div class="board-container"><div id="repaint-board-2" class="grid"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🎬 連鎖シミュレーションコマ送りビューワーエリア -->
+    <div class="playback-section">
+        <div class="playback-header">
+            <div class="playback-title">🎬 連鎖シミュレーション確認</div>
+            <div id="playback-status" class="playback-status">待機中</div>
+        </div>
+        <div class="board-wrapper" style="align-items: center;">
+            <div id="playback-next-row" class="next-puyo-row" style="margin-left: 45px;"></div>
+            <div class="board-container"><div id="playback-board" class="grid"></div></div>
+        </div>
+        <div class="playback-controls">
+            <button id="playback-prev" class="playback-btn" onclick="prevPlaybackStep()" disabled>◀ 戻る</button>
+            <button id="playback-reset" class="playback-btn" onclick="resetPlayback()" disabled>🔄 最初に戻す</button>
+            <button id="playback-next" class="playback-btn" onclick="nextPlaybackStep()" disabled>進む ▶</button>
+        </div>
+    </div>
+
+    <div class="stats-container">
+        <div class="stat-card"><div class="stat-label">訪問人数</div><div id="visitor-count" class="stat-value">0</div></div>
+        <div class="stat-card"><div class="stat-label">総探索回数</div><div id="total-execs" class="stat-value">0</div></div>
+        <div class="stat-card"><div class="stat-label">総探索パターン数</div><div id="total-patterns" class="stat-value">0</div></div>
+    </div>
+
+    <div class="purpose-section">
+        <div class="purpose-title">🧪 開発目的</div>
+        <div class="purpose-text">
+            開発動機は主に3つあります<br>
+            1つ目は、以前YouTubeにてぷよつかい大会でぬりかえスキルを使うときに「とにかく大量に塗り替え、潤沢ななぞり消し数に任せて1連鎖で大量に消す」というプレイスタイルを目撃したことです.
+            私としては、パズルゲームなのだから連鎖をしっかり繋げ,盤面のぷよ1つ1つを大切にしたいという思いがあります.
+            そこで、このシミュレータで「連鎖を組むぬりかえ」の良さに気付き、いかに効率的で賢い塗り替え方を考えるかを重視してほしいと考えました.
+            こうすることで、「強いキャラの枚数がランキングに直結する」という考えを薄め、盤面全体を上手く巻き込んだ「美しいぬりかえ方」を探求する楽しみを見出すことで、より深くゲームを楽しめるようになってほしいと思っています.<br>
+            2つ目は、自分のぬりかえ能力がどれほどか知りたいという興味です.
+            ぬりかえキャラを2体入れれば、ぬりかえパターンは8×10^19なので、普通のパソコンで頑張ってシミュレートしてもせいぜい数ppbしか探索できないため、ランダムにパソコンで探索するよりもまだ人が考えた方が点数が良くなるだろうということを検証するためにしています.
+            実際に検証してみたところ、自分が15分考えて188点に対し、プログラムだと10億パターンを60秒でやって174点という結果になり、やはり人間の思考の鋭さを再認識しました.
+            (なお、本来はマルチスレッドによる高速化が可能ですが、自身のWeb実装に関する知見不足によりシングルスレッド動作に留まっており、計算速度は1割程度に低下しています.)<br>
+            3つ目は、テスト期間など忙しい人がとりあえず「そこそこのスコア」を手軽にとれるようにし、ある程度のランキングに入れるようにすることで、ゲームがしたいという欲望を少しでも抑えられるようにするためです.
+            私自身、テスト期間中であっても「5,000位以内には入りたい」という思いから無理にプレイを続けてしまった経験があります. このツールを使うことで、同じような悩みを抱える人の状況を少しでも改善できればと考えています.<br>
+            以上が私の開発動機です.
+        </div>
+    </div>
+
+    <div class="comment-section">
+        <div style="font-size: 1.1em; color: #3498db; font-weight: bold;">💬 掲示板 / フィードバック</div>
+        <textarea id="comment-textarea" name="comment" class="comment-textarea" placeholder="要望やバグ報告があれば、Twitterで #ぷよクエ解析シム などのタグを付けて呟いていただけると助かります. しがない工学部生が学業の合間に作っているものなので、のんびり改善していく予定です.&#10;この掲示板は未完成でまだ使えません. 完成まではTwitterの方でお願いします."></textarea>
+        <div style="text-align: right;"><button class="submit-btn">送信する</button></div>
+    </div>
+
+    <div style="margin: 30px 0; padding: 20px; background-color: #1e1e1e; color: #d4d4d4; border-radius: 8px; font-family: 'Consolas', 'Monaco', monospace; border: 1px solid #333;">
+        <p style="color: #6a9955; margin-bottom: 15px;">/** 💡 ツールがお役に立ちましたら **/</p>
+        <p style="margin: 8px 0;">
+            <span style="color: #569cd6;">if</span> (tool_is_useful) {
+        </p>
+        <p style="margin: 8px 0 8px 20px;">
+            <span style="color: #ce9178;">give_feedback</span>(<a href="https://twitter.com/intent/tweet?hashtags=ぷよクエ解析シム" target="_blank" style="color: #4fc1ff; text-decoration: underline;">"#ぷよクエ解析シム"</a>); <span style="color: #6a9955">// ハッシュタグ付きポスト作成リンク</span>
+        </p>
+        <p style="margin: 8px 0 8px 20px;">
+            <span style="color: #ce9178;">follow_developer</span>(<a href="https://twitter.com/intent/follow?screen_name=RepuyoRe" target="_blank" style="color: #4fc1ff; text-decoration: underline;">"@RepuyoReをフォロー"</a>); <span style="color: #6a9955">// フォローリンク</span>
+        </p>
+        <p style="margin: 8px 0 8px 20px;">
+            <span style="color: #ce9178;">send_resource</span>(<a href="https://www.amazon.jp/hz/wishlist/ls/3PSSCX0U53CZP?ref_=wl_share" target="_blank" rel="noopener noreferrer" style="color: #4fc1ff; text-decoration: underline;">"Amazon_Wishlist"</a>); <span style="color: #6a9955">// Amazon 欲しいものリスト</span>
+        </p>
+        <p style="margin: 8px 0;">
+            }
+        </p>
+        <p style="font-size: 0.8em; color: #888; margin-top: 15px; text-align: right;">System Status: Optimization complete.</p>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
+
+<script>
+    // Firebase初期化
+    const firebaseConfig = {
+        apiKey: "AIzaSyBxMptE0LD0sBSbJq1D3YHaM0hy36zu05g",
+        authDomain: "puyo-logic-stats.firebaseapp.com",
+        databaseURL: "https://puyo-logic-stats-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "puyo-logic-stats",
+        storageBucket: "puyo-logic-stats.firebasestorage.app",
+        messagingSenderId: "369432653847",
+        appId: "1:369432653847:web:d09f669ac2a8ef4e61ac52",
+        measurementId: "G-1GYB847L0E"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    db.goOnline();
+
+    let myExecs = parseInt(localStorage.getItem('puyo_my_execs')) || 0;
+    let myPatterns = parseInt(localStorage.getItem('puyo_my_patterns')) || 0;
+
+    const inputLabels = [
+        "色行 1:", "色行 2:", "色行 3:", "色行 4:", "色行 5:", "色行 6:", 
+        "+行 1:", "+行 2:", "+行 3:", "+行 4:", "+行 5:", "+行 6:", 
+        "BE行 1:", "BE行 2:", "BE行 3:", "BE行 4:", "BE行 5:", "BE行 6:", 
+        "N盤面:", "N+:", "塗 a:", "塗 b:", "実行時間:", "探索深度:", 
+        "BE保:", "連鎖:", "予備3:", "予備4:", "予備5:", "予備6:", 
+        "予備7:", "予備8:", "予備9:", "予備10:", "予備11:", "予備12:"
+    ];
+    const placeholderHints = [
+        "13121232", "25241231", "21545231", "45512452", "44132442", "35545511", 
+        "10001001", "01100111", "01011101", "11011011", "11110011", "01111011", 
+        "00000000", "10001100", "11001010", "01000111", "01101011", "00110110", 
+        "11111111", "11111111", "12", "12", "2", "2", 
+        "0", "1", "0", "0", "0", "0", 
+        "0", "0", "0", "0", "0", "0"
+    ];
+
+    const puyoWorker = new Worker('puyo_worker.js');
+
+    // 🎬 再生プレイヤー用のスナップショット管理
+    let playbackSteps = [];
+    let currentPlaybackIndex = 0;
+
+    // Workerから結果が届いた時の処理
+    puyoWorker.onmessage = function(e) {
+        if (e.data.type === 'RESULT') {
+            const { score, tap, colorArray, originalColorArray, priority, plusArray, bonusArray } = e.data;
+
+            updateBestScore(score);
+            updateUITrace(Math.floor(tap/8)+1, (tap%8)+1, priority);
+
+            colorArray.forEach((color, i) => {
+                const origColor = originalColorArray[i];
+                const isPlus = plusArray[i];
+                const isBonus = bonusArray[i];
+
+                updateUICell("original-board", i, origColor, isPlus, isBonus);
+                updateUICell("output-board", i, color, 0, 0); 
+                
+                const isRepaint1 = (color === 1 && origColor !== 1);
+                const isRepaint2 = (color === 2 && origColor !== 2);
+                updateUICell("repaint-board-1", i, isRepaint1 ? 1 : 0);
+                updateUICell("repaint-board-2", i, isRepaint2 ? 2 : 0);
+            });
+
+            // 🚀 C言語の完全準拠ロジックで連鎖コマ送りステップを生成
+            generatePlaybackSteps(colorArray, plusArray, bonusArray, tap);
+
+            finishProgressBar();
+        } 
+        else if (e.data.type === 'PATTERNS') {
+            addPatternCount(e.data.count);
+        } 
+        else if (e.data.type === 'NO_RESULT') {
+            showNoResult();
+            finishProgressBar();
+        }
+    };
+
+    function updateStatsUI() {
+        document.getElementById('total-execs').textContent = myExecs.toLocaleString();
+        document.getElementById('total-patterns').textContent = myPatterns.toLocaleString();
+    }
+
+    function getLogicMap() {
+        const a = parseInt(document.getElementById('target-a').value) || 1;
+        const b = parseInt(document.getElementById('target-b').value) || 2;
+        let map = [0, 1, 2, 3, 4, 5];
+
+        let temp1 = map[1];
+        map[1] = map[a];
+        map[a] = temp1;
+
+        let bIdx = map.indexOf(b);
+        let temp2 = map[2];
+        map[2] = map[bIdx];
+        map[bIdx] = temp2;
+        return map;
+    }
+
+    function syncGuideText() {
+        const colorNames = ["ハート", "赤", "青", "緑", "黄", "紫"];
+        const colorCodes = ["#ffdae9", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
+        const aVal = document.getElementById('target-a').value;
+        const bVal = document.getElementById('target-b').value;
+
+        document.getElementById('label-a-name').textContent = colorNames[aVal];
+        document.getElementById('label-a-color').textContent = colorNames[aVal];
+        document.getElementById('label-b-name').textContent = colorNames[bVal];
+        document.getElementById('label-b-color').textContent = colorNames[bVal];
+
+        document.getElementById('label-a-name').style.color = colorCodes[aVal];
+        document.getElementById('label-b-name').style.color = colorCodes[bVal];
+    }
+
+    window.updateBestScore = function(score) {
+        const display = document.getElementById('best-score-display');
+        display.textContent = score.toLocaleString();
+        display.style.color = score > 150 ? "#f1c40f" : "#fff";
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+        db.ref('puyo_stats').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                document.getElementById('visitor-count').textContent = (data.visitors || 0).toLocaleString();
+                document.getElementById('total-execs').textContent = (data.execs || 0).toLocaleString();
+                document.getElementById('total-patterns').textContent = (data.patterns || 0).toLocaleString();
+            }
+        });
+
+        if (!sessionStorage.getItem('puyo_visited')) {
+            db.ref('puyo_stats/visitors').set(firebase.database.ServerValue.increment(1))
+              .then(() => sessionStorage.setItem('puyo_visited', 'true'))
+              .catch(e => console.error("Firebase Visitors Error:", e));
+        }
+        updateStatsUI(); 
+
+        const inputSection = document.getElementById('input-section');
+        for (let i = 0; i < 36; i++) {
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'input-row';
+            rowDiv.innerHTML = `<label class="input-label" for="input-field-${i}">${inputLabels[i]}</label><input type="text" id="input-field-${i}" name="input_field_${i}" maxlength="8" class="input-field" placeholder="${placeholderHints[i]}">`;
+            inputSection.appendChild(rowDiv);
+        }
+
+        const nextRow = document.getElementById('next-puyo-row');
+        const playbackNextRow = document.getElementById('playback-next-row');
+        for (let i = 0; i < 8; i++) {
+            const cell = document.createElement('div');
+            cell.id = `next-cell-${i}`;
+            cell.className = 'next-puyo-cell';
+            nextRow.appendChild(cell);
+
+            const pCell = document.createElement('div');
+            pCell.id = `playback-next-cell-${i}`;
+            pCell.className = 'next-puyo-cell';
+            playbackNextRow.appendChild(pCell);
+        }
+        createExcelGrid('original-board');
+        createExcelGrid('output-board');
+        createExcelGrid('repaint-board-1');
+        createExcelGrid('repaint-board-2');
+        createExcelGrid('playback-board');
+        syncGuideText();
+
+        const allFields = document.querySelectorAll('.input-field');
+        for (let r = 0; r < 6; r++) {
+            allFields[r].addEventListener('input', () => {
+                const logicMap = getLogicMap();
+                for (let rowIdx = 0; rowIdx < 6; rowIdx++) {
+                    const rowStr = allFields[rowIdx].value.padStart(8, '0');
+                    for (let colIdx = 0; colIdx < 8; colIdx++) {
+                        const absoluteColor = parseInt(rowStr[colIdx]) || 0;
+                        const cellIndex = rowIdx * 8 + colIdx;
+                        const internalColorSlot = logicMap.indexOf(absoluteColor);
+                        
+                        const currentPlusRowStr = allFields[6 + rowIdx].value.padStart(8, '0');
+                        const isPlus = parseInt(currentPlusRowStr[colIdx]) || 0;
+
+                        const currentBeRowStr = allFields[12 + rowIdx].value.padStart(8, '0');
+                        const isBonus = parseInt(currentBeRowStr[colIdx]) || 0;
+
+                        updateUICell("original-board", cellIndex, internalColorSlot !== -1 ? internalColorSlot : absoluteColor, isPlus, isBonus);
+                    }
+                }
+            });
+        }
+
+        applyDeviceOptimization();
+        setTimeout(() => {
+            startSearch();
+        }, 670);
+    });
+
+    function createExcelGrid(gridId) {
+        const grid = document.getElementById(gridId);
+        for (let r = 0; r <= 6; r++) {
+            for (let c = 0; c <= 8; c++) {
+                const cell = document.createElement('div');
+                if (r === 0 && c === 0) { cell.className = 'cell origin-cell'; cell.textContent = '行\\列'; }
+                else if (r === 0) { cell.className = 'cell header-cell'; cell.textContent = c; }
+                else if (c === 0) { cell.className = 'cell header-cell'; cell.style.width = '45px'; cell.textContent = r; }
+                else { cell.className = 'cell data-cell'; cell.id = `${gridId}-cell-${(r-1)*8 + (c-1)}`; }
+                grid.appendChild(cell);
+            }
+        }
+    }
+
+    function applyDeviceOptimization() {
+        const ua = navigator.userAgent.toLowerCase();
+        const body = document.body;
+
+        if (ua.includes('iphone') || ua.includes('android')) {
+            body.classList.add('is-mobile');
+        } else {
+            body.classList.remove('is-mobile');
+        }
+    }
+
+    function toggleUsage() {
+        const content = document.getElementById('usage-content');
+        const icon = document.getElementById('usage-icon');
+        
+        if (content.style.maxHeight === '0px' || content.style.maxHeight === '') {
+            content.style.maxHeight = content.scrollHeight + "px";
+            icon.style.transform = "rotate(180deg)";
+        } else {
+            content.style.maxHeight = "0px";
+            icon.style.transform = "rotate(0deg)";
+        }
+    }
+
+    function startSearch() {
+        const inputs = document.querySelectorAll('.input-field');
+        const reserve12Val = inputs[35] ? inputs[35].value.trim() : "";
+
+        const writeMatch = reserve12Val.match(/^ReV9A_w([0-9])$/);
+        const readMatch  = reserve12Val.match(/^ReV9A_r([0-9])$/);
+
+        // 📥 【読み込みのみ実行】
+        if (readMatch) {
+            const slotIndex = readMatch[1];
+            db.ref(`puyo_slots/slot_${slotIndex}`).once('value').then(snapshot => {
+                const savedData = snapshot.val();
+                if (savedData && Array.isArray(savedData)) {
+                    savedData.forEach((textVal, idx) => {
+                        if (inputs[idx]) inputs[idx].value = textVal;
+                    });
+
+                    const logicMap = getLogicMap();
+                    for (let rowIdx = 0; rowIdx < 6; rowIdx++) {
+                        const rowStr  = (inputs[rowIdx].value || "").padStart(8, '0');
+                        const plusStr = (inputs[6 + rowIdx].value || "").padStart(8, '0');
+                        const beStr   = (inputs[12 + rowIdx].value || "").padStart(8, '0');
+                        for (let colIdx = 0; colIdx < 8; colIdx++) {
+                            const absCol = parseInt(rowStr[colIdx]) || 0;
+                            const isPlus = parseInt(plusStr[colIdx]) || 0;
+                            const isBon  = parseInt(beStr[colIdx]) || 0;
+                            const slot   = logicMap.indexOf(absCol);
+                            updateUICell("original-board", rowIdx * 8 + colIdx, slot !== -1 ? slot : absCol, isPlus, isBon);
+                        }
+                    }
+
+                    const nextColorsStr = (inputs[18].value || placeholderHints[18]).padStart(8, '1');
+                    const nextPlusStr   = (inputs[19].value || placeholderHints[19]).padStart(8, '0');
+                    const colors = ["transparent", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
+                    for (let i = 0; i < 8; i++) {
+                        const cell = document.getElementById(`next-cell-${i}`);
+                        if (cell) {
+                            const colorIdx = parseInt(nextColorsStr[i]) || 0;
+                            cell.style.backgroundColor = colors[colorIdx];
+                            cell.textContent = nextPlusStr[i] === "1" ? "+" : "";
+                        }
+                    }
+
+                    document.getElementById('best-score-display').textContent = `読込完了(${slotIndex})`;
+                }
+            }).catch(err => {
+                console.error("読込エラー:", err);
+            });
+            return;
+        }
+
+        // 📤 【書き込みのみ実行】
+        if (writeMatch) {
+            const slotIndex = writeMatch[1];
+            const currentValues = Array.from(inputs).map(inp => inp.value);
+            db.ref(`puyo_slots/slot_${slotIndex}`).set(currentValues)
+                .then(() => {
+                    document.getElementById('best-score-display').textContent = `保存完了(${slotIndex})`;
+                })
+                .catch(err => {
+                    console.error("保存エラー:", err);
+                });
+            return;
+        }
+
+        // 🚀 【通常時のみ探索を実行】
+        myExecs++;
+        localStorage.setItem('puyo_my_execs', myExecs);
+        db.ref('puyo_stats/execs').set(firebase.database.ServerValue.increment(1));
+        document.getElementById('best-score-display').textContent = "探索中";
+
+        const timeLimit = parseInt(inputs[22].value !== "" ? inputs[22].value : placeholderHints[22]);
+        showProgressBar(timeLimit);
+
+        setTimeout(() => {
+            const logicMap = getLogicMap(); 
+            const nextColorsStr = (inputs[18].value || placeholderHints[18]).padStart(8, '1');
+            const nextPlusStr   = (inputs[19].value || placeholderHints[19]).padStart(8, '0');
+            
+            for (let i = 0; i < 8; i++) {
+                const cell = document.getElementById(`next-cell-${i}`);
+                if (cell) {
+                    const colorIdx = parseInt(nextColorsStr[i]) || 0;
+                    const colors = ["transparent", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
+                    cell.style.backgroundColor = colors[colorIdx];
+                    cell.textContent = nextPlusStr[i] === "1" ? "+" : "";
+                }
+            }
+
+            const combinedData = Array.from(inputs).map((input, idx) => {
+                let val = (input.value !== "") ? input.value : placeholderHints[idx];
+                if (idx <= 19) {
+                    val = val.padStart(8, '0');
+                }
+                if ((idx >= 0 && idx <= 5) || idx === 18) {
+                    return val.split('').map(char => {
+                        const num = parseInt(char);
+                        return logicMap.indexOf(num);
+                    }).join('');
+                }
+                return val;
+            }).join(",");
+
+            puyoWorker.postMessage(combinedData);
+        }, 100);
+    }
+
+    function showProgressBar(seconds) {
+        const container = document.getElementById('progress-container');
+        const bar = document.getElementById('progress-bar');
+        container.style.display = 'block';
+        bar.style.animation = 'none'; 
+        void bar.offsetWidth; 
+        bar.style.animation = `growBar ${seconds}s linear forwards`;
+    }
+
+    function finishProgressBar() {
+        const container = document.getElementById('progress-container');
+        const bar = document.getElementById('progress-bar');
+        bar.style.animation = 'none';
+        bar.style.transform = 'scaleX(1)';
+        setTimeout(() => {
+            container.style.display = 'none';
+            bar.style.transform = 'scaleX(0)'; 
+        }, 50);
+    }
+
+    window.addPatternCount = function(count) {
+        if (!count || isNaN(count)) return;
+        db.ref('puyo_stats/patterns').set(firebase.database.ServerValue.increment(Number(count)));
+    };
+
+    window.updateUICell = function(gridId, index, colorIndex, isPlus = 0, isBonus = 0) {
+        const cell = document.getElementById(`${gridId}-cell-${index}`);
+        if (!cell) return;
+        
+        const logicMap = getLogicMap();
+        const originalColor = (colorIndex === -1) ? -1 : logicMap[colorIndex];
+
+        const colors = ["transparent", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
+        
+        if (originalColor === -1) {
+            cell.style.backgroundColor = "transparent";
+            cell.textContent = "";
+            return;
+        }
+
+        if (originalColor === 0 && (gridId === "original-board" || gridId === "output-board" || gridId === "playback-board")) {
+            cell.style.backgroundColor = "#ffdae9"; 
+        } else {
+            cell.style.backgroundColor = colors[originalColor] || "rgba(255,255,255,0.05)";
+        }
+        
+        let text = "";
+        if (gridId !== "output-board") {
+            if (isPlus) text += "+";
+            if (isBonus) text += "B";
+        }
+        cell.textContent = text;
+    };
+
+    window.updateUITrace = function(row, col, colorIndex) {
+        const logicMap = getLogicMap();
+        const originalColor = logicMap[colorIndex];
+
+        const colorCodes = ["#ccc", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
+        const target = document.getElementById('trace-result');
+        const colorCode = colorCodes[originalColor] || "#fff";
+        target.innerHTML = `${row} 行 ${col} 列 <span style="color: ${colorCode}; margin-left: 12px; font-size: 1.2em; text-shadow: 0 0 10px ${colorCode};">●</span>`;
+    };
+
+    window.showNoResult = function() {
+        const display = document.getElementById('best-score-display');
+        display.textContent = "発見できず";
+        display.style.color = "#e74c3c";
+        document.getElementById('trace-result').textContent = "-- 行 -- 列";
+    };
+
+    /* ==========================================================================
+       🎬 連鎖シミュレーションコマ送りエンジン（C言語 puyosim.c 完全準拠）
+       ========================================================================== */
+    function generatePlaybackSteps(colorArray, plusArray, bonusArray, tapIndex) {
+        const inputs = document.querySelectorAll('.input-field');
+        const logicMap = getLogicMap();
+        
+        const nextColorsStr = (inputs[18].value || placeholderHints[18]).padStart(8, '1');
+        const nextPlusStr   = (inputs[19].value || placeholderHints[19]).padStart(8, '0');
+        const reserve2Val   = parseInt(inputs[25] ? inputs[25].value : "0") || 0;
+        const maxChains     = Math.max(1, reserve2Val + 1); // C言語側の max_chains 定義
+
+        // 各列（0〜7列）のNEXTキュー（各列1個ずつ）
+        let nextColumns = [];
+        for (let c = 0; c < 8; c++) {
+            const rawCol = parseInt(nextColorsStr[c]) || 1;
+            const slotCol = logicMap.indexOf(rawCol);
+            const isPl = parseInt(nextPlusStr[c]) || 0;
+            nextColumns.push([{ color: slotCol !== -1 ? slotCol : rawCol, plus: isPl }]);
+        }
+
+        // 盤面データ (BEは固定位置、色とプラスは移動)
+        let currentBoard = [];
+        for (let i = 0; i < 48; i++) {
+            currentBoard.push({
+                color: colorArray[i],
+                plus: plusArray[i] || 0
+            });
+        }
+        const fixedBonusArray = [...bonusArray];
+
+        playbackSteps = [];
+        let totalScore = 0;
+
+        // 1. 初期状態
+        playbackSteps.push({
+            desc: "塗り替え後 (初期盤面)",
+            chain: 0,
+            score: totalScore,
+            board: JSON.parse(JSON.stringify(currentBoard)),
+            next: JSON.parse(JSON.stringify(nextColumns))
+        });
+
+        // 2. なぞり消し
+        if (tapIndex >= 0 && tapIndex < 48) {
+            currentBoard[tapIndex].color = -1;
+            currentBoard[tapIndex].plus = 0;
+            playbackSteps.push({
+                desc: `なぞり消し (${Math.floor(tapIndex/8)+1}行 ${tapIndex%8+1}列)`,
+                chain: 0,
+                score: totalScore,
+                board: JSON.parse(JSON.stringify(currentBoard)),
+                next: JSON.parse(JSON.stringify(nextColumns))
+            });
+        }
+
+        // 3. なぞり後 ぷよ落下
+        if (applyGravity(currentBoard)) {
+            playbackSteps.push({
+                desc: "なぞり後 ぷよ落下",
+                chain: 0,
+                score: totalScore,
+                board: JSON.parse(JSON.stringify(currentBoard)),
+                next: JSON.parse(JSON.stringify(nextColumns))
+            });
+        }
+
+        let chainCount = 0;
+
+        // 🔄 フェーズ1: なぞり後の盤面内連鎖ループ
+        while (true) {
+            const toDelete = findConnectionsWithHeart(currentBoard);
+            if (toDelete.filter(v => v === 1).length === 0) break;
+
+            chainCount++;
+            let stepScore = 0;
+
+            for (let i = 0; i < 48; i++) {
+                if (toDelete[i]) {
+                    const p = currentBoard[i].plus;
+                    const b = fixedBonusArray[i];
+                    if (!p && !b) stepScore += 1;
+                    else if (!p && b) stepScore += 3;
+                    else if (p && !b) stepScore += 2;
+                    else if (p && b) stepScore += 6;
+
+                    currentBoard[i].color = -1;
+                    currentBoard[i].plus = 0;
+                }
+            }
+            totalScore += stepScore;
+
+            playbackSteps.push({
+                desc: `第 ${chainCount} 連鎖消滅 (+${stepScore}点)`,
+                chain: chainCount,
+                score: totalScore,
+                board: JSON.parse(JSON.stringify(currentBoard)),
+                next: JSON.parse(JSON.stringify(nextColumns))
+            });
+
+            if (applyGravity(currentBoard)) {
+                playbackSteps.push({
+                    desc: `第 ${chainCount} 連鎖 ぷよ落下`,
+                    chain: chainCount,
+                    score: totalScore,
+                    board: JSON.parse(JSON.stringify(currentBoard)),
+                    next: JSON.parse(JSON.stringify(nextColumns))
+                });
+            }
+        }
+
+        // 🚀 フェーズ2: ネクスト落下（各列の一番上の空きマスに1個ずつ補充）
+        let nextDropped = false;
+        for (let c = 0; c < 8; c++) {
+            for (let r = 0; r < 6; r++) {
+                const idx = r * 8 + c;
+                if (currentBoard[idx].color === -1 && nextColumns[c].length > 0) {
+                    const item = nextColumns[c].shift();
+                    currentBoard[idx].color = item.color;
+                    currentBoard[idx].plus = item.plus;
+                    nextDropped = true;
+                    break;
+                }
+            }
+        }
+
+        if (nextDropped) {
+            applyGravity(currentBoard);
+            playbackSteps.push({
+                desc: "NEXTぷよ補充 (落下)",
+                chain: chainCount,
+                score: totalScore,
+                board: JSON.parse(JSON.stringify(currentBoard)),
+                next: JSON.parse(JSON.stringify(nextColumns))
+            });
+
+            // 🔄 フェーズ3: ネクスト後の最終チェック（maxChains 制限付きループ）
+            let postNextChains = 0;
+            while (postNextChains < maxChains) {
+                const finalDelete = findConnectionsWithHeart(currentBoard);
+                if (finalDelete.filter(v => v === 1).length === 0) break;
+
+                chainCount++;
+                postNextChains++;
+                let stepScore = 0;
+
+                for (let i = 0; i < 48; i++) {
+                    if (finalDelete[i]) {
+                        const p = currentBoard[i].plus;
+                        const b = fixedBonusArray[i];
+                        if (!p && !b) stepScore += 1;
+                        else if (!p && b) stepScore += 3;
+                        else if (p && !b) stepScore += 2;
+                        else if (p && b) stepScore += 6;
+
+                        currentBoard[i].color = -1;
+                        currentBoard[i].plus = 0;
+                    }
+                }
+                totalScore += stepScore;
+
+                playbackSteps.push({
+                    desc: `第 ${chainCount} 連鎖消滅 (+${stepScore}点)`,
+                    chain: chainCount,
+                    score: totalScore,
+                    board: JSON.parse(JSON.stringify(currentBoard)),
+                    next: JSON.parse(JSON.stringify(nextColumns))
+                });
+
+                if (applyGravity(currentBoard)) {
+                    playbackSteps.push({
+                        desc: `第 ${chainCount} 連鎖 ぷよ落下`,
+                        chain: chainCount,
+                        score: totalScore,
+                        board: JSON.parse(JSON.stringify(currentBoard)),
+                        next: JSON.parse(JSON.stringify(nextColumns))
+                    });
+                }
+            }
+        }
+
+        currentPlaybackIndex = 0;
+        renderPlaybackStep(fixedBonusArray);
+    }
+
+    // 重力処理（色とプラスのみ落下）
+    function applyGravity(board) {
+        let moved = false;
+        for (let c = 0; c < 8; c++) {
+            for (let r = 5; r > 0; r--) {
+                const idx = r * 8 + c;
+                if (board[idx].color === -1) {
+                    for (let aboveR = r - 1; aboveR >= 0; aboveR--) {
+                        const aboveIdx = aboveR * 8 + c;
+                        if (board[aboveIdx].color !== -1) {
+                            board[idx].color = board[aboveIdx].color;
+                            board[idx].plus  = board[aboveIdx].plus;
+
+                            board[aboveIdx].color = -1;
+                            board[aboveIdx].plus  = 0;
+                            moved = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return moved;
+    }
+
+    // 4連結消去 ＆ ハート巻き込み判定（C言語 find_connections 準拠）
+    function findConnectionsWithHeart(board) {
+        let visited = new Array(48).fill(false);
+        let toDelete = new Array(48).fill(0);
+        let foundChain = false;
+
+        // 1. 色ぷよ(1-5)の4連結探索
+        for (let i = 0; i < 48; i++) {
+            if (board[i].color >= 1 && board[i].color <= 5 && !visited[i]) {
+                const targetColor = board[i].color;
+                let group = [];
+                let queue = [i];
+                visited[i] = true;
+
+                while (queue.length > 0) {
+                    const curr = queue.pop();
+                    group.push(curr);
+                    const r = Math.floor(curr / 8);
+                    const c = curr % 8;
+
+                    const neighbors = [
+                        r > 0 ? (r - 1) * 8 + c : -1,
+                        r < 5 ? (r + 1) * 8 + c : -1,
+                        c > 0 ? r * 8 + (c - 1) : -1,
+                        c < 7 ? r * 8 + (c + 1) : -1
+                    ];
+
+                    neighbors.forEach(nIdx => {
+                        if (nIdx !== -1 && !visited[nIdx] && board[nIdx].color === targetColor) {
+                            visited[nIdx] = true;
+                            queue.push(nIdx);
+                        }
+                    });
+                }
+
+                if (group.length >= 4) {
+                    foundChain = true;
+                    group.forEach(idx => { toDelete[idx] = 1; });
+                }
+            }
+        }
+
+        // 2. 消える色ぷよに隣接するハートぷよ(0)の巻き込み
+        if (foundChain) {
+            for (let i = 0; i < 48; i++) {
+                if (toDelete[i] && board[i].color !== 0) {
+                    const r = Math.floor(i / 8);
+                    const c = i % 8;
+
+                    const neighbors = [
+                        r > 0 ? (r - 1) * 8 + c : -1,
+                        r < 5 ? (r + 1) * 8 + c : -1,
+                        c > 0 ? r * 8 + (c - 1) : -1,
+                        c < 7 ? r * 8 + (c + 1) : -1
+                    ];
+
+                    neighbors.forEach(nIdx => {
+                        if (nIdx !== -1 && board[nIdx].color === 0) {
+                            toDelete[nIdx] = 1;
+                        }
+                    });
+                }
+            }
+        }
+
+        return toDelete;
+    }
+
+    // 🎬 プレイヤーUI描画
+    function renderPlaybackStep(fixedBonusArray) {
+        if (playbackSteps.length === 0) return;
+
+        if (!fixedBonusArray) {
+            const inputs = document.querySelectorAll('.input-field');
+            fixedBonusArray = [];
+            for (let r = 0; r < 6; r++) {
+                const beStr = (inputs[12 + r].value || placeholderHints[12 + r]).padStart(8, '0');
+                for (let c = 0; c < 8; c++) {
+                    fixedBonusArray.push(parseInt(beStr[c]) || 0);
+                }
+            }
+        }
+
+        const step = playbackSteps[currentPlaybackIndex];
+        document.getElementById('playback-status').textContent = `[${currentPlaybackIndex + 1}/${playbackSteps.length}] ${step.desc} (計 ${step.score}点)`;
+
+        // 盤面描画
+        for (let i = 0; i < 48; i++) {
+            const cellData = step.board[i];
+            const isBonus = fixedBonusArray[i] || 0;
+            updateUICell("playback-board", i, cellData.color, cellData.plus, isBonus);
+        }
+
+        // NEXTぷよ残数描画
+        const logicMap = getLogicMap();
+        const colors = ["transparent", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
+        for (let c = 0; c < 8; c++) {
+            const cell = document.getElementById(`playback-next-cell-${c}`);
+            if (cell) {
+                if (step.next[c] && step.next[c].length > 0) {
+                    const item = step.next[c][0];
+                    const origCol = logicMap[item.color];
+                    cell.style.backgroundColor = colors[origCol] || "transparent";
+                    cell.textContent = item.plus ? "+" : "";
+                } else {
+                    cell.style.backgroundColor = "transparent";
+                    cell.textContent = "";
+                }
+            }
+        }
+
+        document.getElementById('playback-prev').disabled = (currentPlaybackIndex === 0);
+        document.getElementById('playback-reset').disabled = (currentPlaybackIndex === 0);
+        document.getElementById('playback-next').disabled = (currentPlaybackIndex >= playbackSteps.length - 1);
+    }
+
+    function nextPlaybackStep() {
+        if (currentPlaybackIndex < playbackSteps.length - 1) {
+            currentPlaybackIndex++;
+            renderPlaybackStep();
+        }
+    }
+
+    function prevPlaybackStep() {
+        if (currentPlaybackIndex > 0) {
+            currentPlaybackIndex--;
+            renderPlaybackStep();
+        }
+    }
+
+    function resetPlayback() {
+        currentPlaybackIndex = 0;
+        renderPlaybackStep();
+    }
+
+    /* ==========================================================================
+       📸 画像境界検知 ＆ シミュレータ一括入力コアロジック
+       ========================================================================== */
+    const ocrFileInput = document.getElementById('ocr-file-input');
+    const ocrCanvas = document.getElementById('ocr-canvas');
+    const ocrCtx = ocrCanvas.getContext('2d');
+    const ocrPreviewArea = document.getElementById('ocr-preview-area');
+
+    ocrFileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) handleOcrImage(e.target.files[0]);
+    });
+
+    function handleOcrImage(file) {
+        if (!file || !file.type.startsWith('image/')) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const img = new Image();
+            img.onload = function() { 
+                analyzeAndPopulate(img); 
+                ocrFileInput.value = ''; // 2回目以降の選択リセット
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function analyzeAndPopulate(img) {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = img.width;
+        tempCanvas.height = img.height;
+        const tempCtx = tempCanvas.getContext('2d', {willReadFrequently: true});
+        
+        tempCtx.drawImage(img, 0, 0);
+
+        const imageData = tempCtx.getImageData(0, 0, img.width, img.height);
+        const data = imageData.data;
+        const width = img.width;
+        const height = img.height;
+        
+        // 1. 垂直境界検知
+        let allRowCounts = [];
+        for (let y = 0; y < height; y++) {
+            let unique = new Set();
+            for (let x = 0; x < width; x++) {
+                const i = (y * width + x) * 4;
+                unique.add((data[i] << 16) | (data[i+1] << 8) | (data[i+2]));
+            }
+            allRowCounts.push(unique.size);
+        }
+
+        let topCutY = 0, bottomCutY = height, foundPlateau = false;
+        let lowCountRows = 0;
+        const scanStartY = Math.floor(height * 0.5), limitY = Math.floor(height * 0.8); 
+        for (let y = scanStartY; y < height; y++) {
+            if (!foundPlateau) {
+                if (allRowCounts[y] <= 40) { lowCountRows++; if (lowCountRows >= 3) foundPlateau = true; }
+                else lowCountRows = 0;
+            } else if (topCutY === 0) {
+                if (allRowCounts[y] >= 70) topCutY = y;
+            }
+            if (y >= limitY && allRowCounts[y] <= 40) { bottomCutY = y; break; }
+        }
+
+        const finalHeight = bottomCutY - topCutY;
+        const aTop = Math.floor(topCutY + finalHeight * 0.25), aBottom = Math.floor(bottomCutY - finalHeight * 0.25);
+        
+        // 2. 水平境界検知
+        let colCounts = [];
+        for (let x = 0; x < width; x++) {
+            let u = new Set();
+            for (let y = aTop; y < aBottom; y++) {
+                const i = (y * width + x) * 4;
+                u.add((data[i] << 16) | (data[i+1] << 8) | (data[i+2]));
+            }
+            colCounts.push(u.size);
+        }
+        let leftX = 0, fGap = false, lLow = 0;
+        for (let x = 0; x < width; x++) {
+            if (!fGap) { if (colCounts[x] <= 10) { lLow++; if (lLow >= 3) fGap = true; } else lLow = 0; }
+            else { if (colCounts[x] >= 40) { leftX = x; break; } }
+        }
+        let rightX = width, rLow = 0;
+        for (let x = Math.floor(width * 0.7); x < width; x++) {
+            if (colCounts[x] <= 10) { rLow++; if (rLow >= 3) { rightX = x - 1; break; } } else rLow = 0;
+        }
+
+        const finalWidth = rightX - leftX;
+
+        ocrCanvas.width = finalWidth; 
+        ocrCanvas.height = finalHeight;
+        ocrCtx.drawImage(img, leftX, topCutY, finalWidth, finalHeight, 0, 0, finalWidth, finalHeight);
+        
+        ocrPreviewArea.style.display = 'flex';
+
+        // 3. マスサンプリング
+        const COLOR_PALETTE = {
+            "1": { r: 210, g: 50,  b: 50 },  // 赤
+            "2": { r: 50,  g: 100, b: 210 }, // 青
+            "3": { r: 50,  g: 160, b: 50 },  // 緑
+            "4": { r: 220, g: 200, b: 50 },  // 黄
+            "5": { r: 150, g: 50,  b: 180 }  // 紫
+        };
+
+        const yRatios = [1, 2, 2, 2, 2, 2, 2];
+        const uH = finalHeight / 13, uW = finalWidth / 8;
+        let currentLoopY = 0;
+
+        const allFields = document.querySelectorAll('.input-field');
+
+        let detectedBonusArray = new Array(48).fill(0);
+        let detectedPlusArray  = new Array(48).fill(0);
+        const reserve1Value = allFields[24] ? allFields[24].value.trim() : "0";
+
+        for (let row = 0; row < 7; row++) {
+            const rowHeight = yRatios[row] * uH;
+            let rowTextBuffer = "";
+
+            for (let col = 0; col < 8; col++) {
+                let sX, eX, sY, eY;
+                const cellLeft   = leftX + (col * uW);
+                const cellRight  = leftX + ((col + 1) * uW);
+                const cellTop    = topCutY + currentLoopY;
+                const cellBottom = topCutY + currentLoopY + rowHeight;
+
+                if (row === 0) {
+                    sX = cellLeft + (uW * 0.33); eX = cellLeft + (uW * 0.48);
+                    sY = cellTop + (rowHeight * 0.33); eY = cellTop + (rowHeight * 0.55);
+                } else {
+                    sX = cellLeft + (uW * 0.25); eX = cellLeft + (uW * 0.75);
+                    sY = cellTop + (rowHeight * 0.25); eY = cellTop + (rowHeight * 0.75);
+                }
+
+                // ボーナスエリア判定
+                let isBonusArea = 0;
+                if (row >= 1) {
+                    let borderSumR = 0, borderSumG = 0, borderCount = 0;
+                    const offsetIn = 4;
+                    const samplePoints = [
+                        { x: cellLeft + offsetIn,  y: cellTop + offsetIn },
+                        { x: cellRight - offsetIn, y: cellTop + offsetIn },
+                        { x: cellLeft + offsetIn,  y: cellBottom - offsetIn },
+                        { x: cellRight - offsetIn, y: cellBottom - offsetIn }
+                    ];
+
+                    samplePoints.forEach(pt => {
+                        const px = Math.floor(pt.x);
+                        const py = Math.floor(pt.y);
+                        if (px >= 0 && px < width && py >= 0 && py < height) {
+                            const idx = (py * width + px) * 4;
+                            borderSumR += data[idx];
+                            borderSumG += data[idx+1];
+                            borderCount++;
+                        }
+                    });
+
+                    if (borderCount > 0) {
+                        const bAvgR = borderSumR / borderCount;
+                        const bAvgG = borderSumG / borderCount;
+                        if (bAvgR >= 200 && bAvgG >= 200) {
+                            isBonusArea = 1;
+                        }
+                    }
+                    const cellIndex = (row - 1) * 8 + col;
+                    detectedBonusArray[cellIndex] = isBonusArea;
+                }
+
+                let sumR = 0, sumG = 0, sumB = 0, count = 0;
+                let uniqueInCell = new Set();
+                const colorCountStartY = Math.floor(sY);
+                const colorCountEndY   = Math.floor(sY + (eY - sY) * 0.5);
+
+                for (let py = Math.floor(sY); py < Math.floor(eY); py++) {
+                    for (let px = Math.floor(sX); px < Math.floor(eX); px++) {
+                        const i = (py * width + px) * 4;
+                        const r = data[i], g = data[i+1], b = data[i+2];
+
+                        if (r > 240 && g > 240 && b > 240) continue;
+                        sumR += r; sumG += g; sumB += b; count++;
+                    }
+                }
+
+                for (let py = colorCountStartY; py < colorCountEndY; py++) {
+                    for (let px = Math.floor(sX); px < Math.floor(eX); px++) {
+                        const i = (py * width + px) * 4;
+                        const r = data[i], g = data[i+1], b = data[i+2];
+                        uniqueInCell.add((r << 16) | (g << 8) | b);
+                    }
+                }
+                if (count === 0) {
+                    const mi = (Math.floor((sY+eY)/2)*width + Math.floor((sX+eX)/2))*4;
+                    sumR = data[mi]; sumG = data[mi+1]; sumB = data[mi+2]; count = 1;
+                }
+                const avg = { r: sumR / count, g: sumG / count, b: sumB / count };
+                let detectedId = "0";
+
+                let rawAllPixels = [];
+                let pixels = [];
+                for (let py = Math.floor(sY); py < Math.floor(eY); py++) {
+                    for (let px = Math.floor(sX); px < Math.floor(eX); px++) {
+                        const i = (py * width + px) * 4;
+                        const r = data[i], g = data[i+1], b = data[i+2];
+                        rawAllPixels.push({ r, g, b });
+                        if (r > 240 && g > 240 && b > 240) continue;
+                        pixels.push({ r, g, b });
+                    }
+                }
+                if (pixels.length === 0) {
+                    const mi = (Math.floor((sY+eY)/2)*width + Math.floor((sX+eX)/2))*4;
+                    pixels.push({ r: data[mi], g: data[mi+1], b: data[mi+2] });
+                }
+                if (rawAllPixels.length === 0) {
+                    const mi = (Math.floor((sY+eY)/2)*width + Math.floor((sX+eX)/2))*4;
+                    rawAllPixels.push({ r: data[mi], g: data[mi+1], b: data[mi+2] });
+                }
+
+                const getTop5Avg = (arr, key, asc = false) => {
+                    const sorted = [...arr].sort((a, b) => asc ? a[key] - b[key] : b[key] - a[key]);
+                    const top5 = sorted.slice(0, Math.min(5, sorted.length));
+                    const sum = top5.reduce((acc, p) => ({ r: acc.r + p.r, g: acc.g + p.g, b: acc.b + p.b }), { r: 0, g: 0, b: 0 });
+                    return { r: sum.r / top5.length, g: sum.g / top5.length, b: sum.b / top5.length };
+                };
+
+                const avgAll = avg;
+                const bMax5  = getTop5Avg(pixels, 'b', false);
+                const bMin5  = getTop5Avg(pixels, 'b', true);
+                const gMin5  = getTop5Avg(pixels, 'g', true);
+
+                if (row === 0) {
+                    let minDest = Infinity;
+                    for (let id in COLOR_PALETTE) {
+                        const t = COLOR_PALETTE[id];
+                        const d = Math.sqrt(Math.pow(avg.r-t.r,2)+Math.pow(avg.g-t.g,2)+Math.pow(avg.b-t.b,2));
+                        if (d < minDest) { minDest = d; detectedId = id; }
+                    }
+                } else {
+                    const isHeart = (avgAll.b >= 200) && 
+                                    (avgAll.r >= 220) && 
+                                    (bMax5.g  <= 225) && 
+                                    (bMin5.r  <= 227) && 
+                                    (bMin5.b  >= 124) && 
+                                    (gMin5.b  <= 200) && 
+                                    (gMin5.r  >= 173);
+
+                    const condRedBase = (avgAll.r * 1.44 - avgAll.b - 138) > 0;
+                    const condYellowB = (bMin5.g * 1.25 - bMin5.b - 125) > 0;
+                    const condGreen   = (avgAll.g * 5 - avgAll.b * 6 + 70) > 0;
+                    const yellowMatchedPx = rawAllPixels.filter(p => p.r > 235 && p.g > 145 && p.b < 50).length;
+                    const yellowRatio = yellowMatchedPx / rawAllPixels.length;
+                    const isYellowCondition = condYellowB || (yellowRatio >= 0.05);
+
+                    if (isHeart) {
+                        detectedId = "0";
+                    } else if (condRedBase && isYellowCondition) {
+                        detectedId = "4";
+                    } else if (condRedBase) {
+                        detectedId = "1";
+                    } else if (condGreen) {
+                        detectedId = "3";
+                    } else {
+                        if (avgAll.g < avgAll.r) {
+                            detectedId = "5";
+                        } else {
+                            detectedId = "2";
+                        }
+                    }
+
+                    // プラス自動判定
+                    const matchedPxCount = rawAllPixels.filter(p => p.r > 235 && p.g > 205 && p.b < 170).length;
+                    const plusRatio = matchedPxCount / rawAllPixels.length;
+                    
+                    let isPlusDetected = 0;
+                    if (detectedId === "4") {
+                        isPlusDetected = (plusRatio >= 0.25) ? 1 : 0;
+                    } else if (detectedId === "1" || detectedId === "2" || detectedId === "3" || detectedId === "5") {
+                        isPlusDetected = (plusRatio > 0.01) ? 1 : 0;
+                    } else {
+                        isPlusDetected = 0;
+                    }
+
+                    const cellIndex = (row - 1) * 8 + col;
+                    detectedPlusArray[cellIndex] = isPlusDetected;
+                }
+                rowTextBuffer += detectedId;
+            }
+
+            if (row === 0) {
+                if (allFields[18]) allFields[18].value = rowTextBuffer;
+            } else {
+                if (allFields[row - 1]) allFields[row - 1].value = rowTextBuffer;
+            }
+            currentLoopY += rowHeight;
+        }
+
+        // プラス状態代入
+        for (let rIdx = 0; rIdx < 6; rIdx++) {
+            let plusStr = "";
+            for (let cIdx = 0; cIdx < 8; cIdx++) {
+                plusStr += detectedPlusArray[rIdx * 8 + cIdx].toString();
+            }
+            if (allFields[6 + rIdx]) {
+                allFields[6 + rIdx].value = plusStr;
+            }
+        }
+
+        // ボーナスエリア代入
+        if (reserve1Value !== "1") {
+            for (let rIdx = 0; rIdx < 6; rIdx++) {
+                let beStr = "";
+                for (let cIdx = 0; cIdx < 8; cIdx++) {
+                    beStr += detectedBonusArray[rIdx * 8 + cIdx].toString();
+                }
+                if (allFields[12 + rIdx]) {
+                    allFields[12 + rIdx].value = beStr;
+                }
+            }
+        }
+
+        // 盤面表示の同期
+        const updatedInputs = document.querySelectorAll('.input-field');
+        const logicMap = getLogicMap();
+
+        for (let rowIdx = 0; rowIdx < 6; rowIdx++) {
+            const rowStr = updatedInputs[rowIdx].value.padStart(8, '0');
+            for (let colIdx = 0; colIdx < 8; colIdx++) {
+                const absoluteColor = parseInt(rowStr[colIdx]) || 0;
+                const cellIndex = rowIdx * 8 + colIdx;
+                const internalColorSlot = logicMap.indexOf(absoluteColor);
+
+                const isPlus = detectedPlusArray[cellIndex];
+                let isBonus = detectedBonusArray[cellIndex];
+                if (reserve1Value === "1") {
+                    const currentBeRowStr = updatedInputs[12 + rowIdx].value.padStart(8, '0');
+                    isBonus = parseInt(currentBeRowStr[colIdx]) || 0;
+                }
+                updateUICell("original-board", cellIndex, internalColorSlot !== -1 ? internalColorSlot : absoluteColor, isPlus, isBonus);
+            }
+        }
+        
+        const nextColorsStr = updatedInputs[18].value.padStart(8, '0');
+        const colors = ["#ffdae9", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
+        
+        for (let i = 0; i < 8; i++) {
+            const cell = document.getElementById(`next-cell-${i}`);
+            if (cell) {
+                const colorIdx = parseInt(nextColorsStr[i]) || 0;
+                cell.style.backgroundColor = colors[colorIdx];
+                cell.textContent = ""; 
+            }
+        }
+    }
+</script>
+</body>
+</html>
