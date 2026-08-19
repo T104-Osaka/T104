@@ -21,6 +21,30 @@
         h1 { color: #f1c40f; text-shadow: 2px 2px #d35400; font-size: 1.8em; text-align: center; margin-bottom: 20px; }
         .usage-section { background-color: rgba(52, 73, 94, 0.8); padding: 15px; border-radius: 10px; border-left: 6px solid #f1c40f; max-width: 1400px; margin: 0 auto 20px auto; font-size: 0.85em; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .wrapper { display: flex; gap: 30px; justify-content: center; max-width: 1800px; margin: 0 auto; align-items: flex-start; }
+
+        /* === シミュレータ用：白く見やすい戻るボタン === */
+.nav-back.sim-nav {
+    max-width: 1280px;
+    margin: 0 auto 15px auto;
+    width: 95%;
+}
+
+.nav-back.sim-nav a {
+    color: #ecf0f1; /* 明るい白灰色 */
+    font-weight: bold;
+    font-size: 0.95em;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); /* 暗い背景で文字をくっきり浮き立たせる */
+    transition: color 0.2s ease, text-shadow 0.2s ease;
+}
+
+.nav-back.sim-nav a:hover {
+    color: #ffffff; /* ホバー時は完全な純白 */
+    text-decoration: underline;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.6); /* ほんのり発光 */
+}
         
         /* サイド入力エリア (380px固定) */
         .side-input { flex: 0 0 380px; background-color: #34495e; padding: 15px; border-radius: 10px; border: 1px solid #7f8c8d; box-shadow: 0 4px 15px rgba(0,0,0,0.3); box-sizing: border-box; }
@@ -129,9 +153,9 @@
 
     <h1> ぷよクエ解析シミュレータ </h1>
 
-    <div class="nav-back">
-            <a href="index.html">← ポータルへ戻る</a>
-    </div>
+    <div class="nav-back sim-nav">
+    <a href="index.html">← ポータルへ戻る</a>
+</div>
 
     <div class="usage-section" id="usage-guide">
         <div onclick="toggleUsage()" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
