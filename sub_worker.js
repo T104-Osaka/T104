@@ -20,3 +20,8 @@ self.reportResultToMain = function(score, tap, colorArray, originalColorArray, p
 self.reportPatterns = function(count) {
     self.postMessage({ type: 'PATTERNS', count });
 };
+
+// 山登り法の推移（5秒ごとの最高点）: times=[5,10,...], scores=[...]
+self.reportHistory = function(times, scores) {
+    self.postMessage({ type: 'HISTORY', times, scores });
+};
