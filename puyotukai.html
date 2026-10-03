@@ -51,6 +51,8 @@ input.input-field{width:62px;height:22px;font-size:12px;text-align:center;border
 .grid{display:grid;grid-template-columns:45px repeat(8,32px);gap:3px}
 .grid .cell{width:32px;height:32px;aspect-ratio:auto;font-size:14px;font-weight:700;cursor:default}
 .grid .pz{width:26px;height:26px;text-shadow:1px 1px 2px #000}
+.grid .cell.star{position:relative}
+.grid .cell.star::before{content:"*";position:absolute;top:-3px;left:3px;z-index:5;font-size:20px;line-height:1;font-weight:900;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000,1px 1px 2px #000;pointer-events:none}
 .grid .header-cell{color:var(--acc);font-size:11px;background:var(--bg);border:0;border-radius:4px}
 .grid .origin-cell{width:45px;font-size:10px;color:var(--mut);background:var(--bg);border:0}
 .trace-container{width:100%;min-height:40px;margin-bottom:10px;background:rgba(26,188,156,.18);border:1px solid #1abc9c;border-radius:6px;display:flex;align-items:center;justify-content:center}
@@ -790,13 +792,14 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
 
             chainCount++;
             let stepScore = 0;
+            const starIdx = []; // 非プラス×BE内で消えるぷよ
 
             for (let i = 0; i < 48; i++) {
                 if (toDelete[i]) {
                     const p = currentBoard[i].plus;
                     const b = fixedBonusArray[i];
                     if (!p && !b) stepScore += 1;
-                    else if (!p && b) stepScore += 3;
+                    else if (!p && b) { stepScore += 3; starIdx.push(i); }
                     else if (p && !b) stepScore += 2;
                     else if (p && b) stepScore += 6;
 
@@ -809,6 +812,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
             playbackSteps.push({
                 desc: `第 ${chainCount} 連鎖消滅 (+${stepScore}点)`,
                 hit: toDelete.map((v, i) => v ? i : -1).filter(i => i >= 0),
+                star: starIdx,
                 chain: chainCount,
                 score: totalScore,
                 board: JSON.parse(JSON.stringify(currentBoard)),
@@ -860,13 +864,14 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                 chainCount++;
                 postNextChains++;
                 let stepScore = 0;
+            const starIdx = []; // 非プラス×BE内で消えるぷよ
 
                 for (let i = 0; i < 48; i++) {
                     if (finalDelete[i]) {
                         const p = currentBoard[i].plus;
                         const b = fixedBonusArray[i];
                         if (!p && !b) stepScore += 1;
-                        else if (!p && b) stepScore += 3;
+                        else if (!p && b) { stepScore += 3; starIdx.push(i); }
                         else if (p && !b) stepScore += 2;
                         else if (p && b) stepScore += 6;
 
@@ -879,6 +884,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                 playbackSteps.push({
                     desc: `第 ${chainCount} 連鎖消滅 (+${stepScore}点)`,
                     hit: finalDelete.map((v, i) => v ? i : -1).filter(i => i >= 0),
+                    star: starIdx,
                     chain: chainCount,
                     score: totalScore,
                     board: JSON.parse(JSON.stringify(currentBoard)),
@@ -1020,6 +1026,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         }
         markCells("playback-board", "tr", step.tap !== undefined ? [step.tap] : []);
         markCells("playback-board", "hit", step.hit || []);
+        markCells("playback-board", "star", step.star || []); // 連鎖シミュ確認画面のみ
 
         // NEXTぷよ残数描画
         const logicMap = getLogicMap();
