@@ -740,10 +740,12 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         for (let i = 0; i < 48; i++) {
             currentBoard.push({
                 color: colorArray[i],
-                plus: plusArray[i] || 0
+                plus: plusArray[i] || 0,
+                id: colorArray[i] === -1 ? -1 : i   // 初期位置で追跡（印用）
             });
         }
         const fixedBonusArray = [...bonusArray];
+        const starSet = new Set(); // 非プラス×BE内で消えるぷよの初期位置
 
         playbackSteps = [];
         let totalScore = 0;
@@ -762,6 +764,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         if (tapIndex >= 0 && tapIndex < 48) {
             currentBoard[tapIndex].color = -1;
             currentBoard[tapIndex].plus = 0;
+            currentBoard[tapIndex].id = -1;
             playbackSteps.push({
                 desc: `なぞり消し (${Math.floor(tapIndex/8)+1}行 ${tapIndex%8+1}列)`,
                 hit: [tapIndex],
@@ -792,19 +795,19 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
 
             chainCount++;
             let stepScore = 0;
-            const starIdx = []; // 非プラス×BE内で消えるぷよ
 
             for (let i = 0; i < 48; i++) {
                 if (toDelete[i]) {
                     const p = currentBoard[i].plus;
                     const b = fixedBonusArray[i];
                     if (!p && !b) stepScore += 1;
-                    else if (!p && b) { stepScore += 3; starIdx.push(i); }
+                    else if (!p && b) { stepScore += 3; if (currentBoard[i].id >= 0) starSet.add(currentBoard[i].id); }
                     else if (p && !b) stepScore += 2;
                     else if (p && b) stepScore += 6;
 
                     currentBoard[i].color = -1;
                     currentBoard[i].plus = 0;
+                    currentBoard[i].id = -1;
                 }
             }
             totalScore += stepScore;
@@ -812,7 +815,6 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
             playbackSteps.push({
                 desc: `第 ${chainCount} 連鎖消滅 (+${stepScore}点)`,
                 hit: toDelete.map((v, i) => v ? i : -1).filter(i => i >= 0),
-                star: starIdx,
                 chain: chainCount,
                 score: totalScore,
                 board: JSON.parse(JSON.stringify(currentBoard)),
@@ -839,6 +841,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                     const item = nextColumns[c].shift();
                     currentBoard[idx].color = item.color;
                     currentBoard[idx].plus = item.plus;
+                    currentBoard[idx].id = -1; // NEXTは初期盤面に存在しないので追跡対象外
                     nextDropped = true;
                     break;
                 }
@@ -864,19 +867,19 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                 chainCount++;
                 postNextChains++;
                 let stepScore = 0;
-            const starIdx = []; // 非プラス×BE内で消えるぷよ
 
                 for (let i = 0; i < 48; i++) {
                     if (finalDelete[i]) {
                         const p = currentBoard[i].plus;
                         const b = fixedBonusArray[i];
                         if (!p && !b) stepScore += 1;
-                        else if (!p && b) { stepScore += 3; starIdx.push(i); }
+                        else if (!p && b) { stepScore += 3; if (currentBoard[i].id >= 0) starSet.add(currentBoard[i].id); }
                         else if (p && !b) stepScore += 2;
                         else if (p && b) stepScore += 6;
 
                         currentBoard[i].color = -1;
                         currentBoard[i].plus = 0;
+                        currentBoard[i].id = -1;
                     }
                 }
                 totalScore += stepScore;
@@ -884,7 +887,6 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                 playbackSteps.push({
                     desc: `第 ${chainCount} 連鎖消滅 (+${stepScore}点)`,
                     hit: finalDelete.map((v, i) => v ? i : -1).filter(i => i >= 0),
-                    star: starIdx,
                     chain: chainCount,
                     score: totalScore,
                     board: JSON.parse(JSON.stringify(currentBoard)),
@@ -903,6 +905,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
             }
         }
 
+        playbackSteps[0].star = [...starSet]; // 最初の盤面にだけ印を付ける
         currentPlaybackIndex = 0;
         renderPlaybackStep(fixedBonusArray);
     }
@@ -919,9 +922,11 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                         if (board[aboveIdx].color !== -1) {
                             board[idx].color = board[aboveIdx].color;
                             board[idx].plus  = board[aboveIdx].plus;
+                            board[idx].id    = board[aboveIdx].id;
 
                             board[aboveIdx].color = -1;
                             board[aboveIdx].plus  = 0;
+                            board[aboveIdx].id    = -1;
                             moved = true;
                             break;
                         }
@@ -1026,7 +1031,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         }
         markCells("playback-board", "tr", step.tap !== undefined ? [step.tap] : []);
         markCells("playback-board", "hit", step.hit || []);
-        markCells("playback-board", "star", step.star || []); // 連鎖シミュ確認画面のみ
+        markCells("playback-board", "star", step.star || []); // 連鎖シミュ確認画面の最初の盤面のみ
 
         // NEXTぷよ残数描画
         const logicMap = getLogicMap();
