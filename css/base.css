@@ -1,0 +1,20 @@
+/* css/base.css — T104 共通ベース（全シミュレータ共通）
+   配色は変数にまとめ、端末のライト/ダークに自動で合わせる */
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f7f7fa;--fg:#1c1c28;--card:#fff;--line:#d0d0da;--acc:#e8590c;--mut:#666;
+--bo:#ffe8cc;--orange:#f08c00;--cyan:#15aabf;
+--p-r:#e5484d;--p-b:#3b82f6;--p-g:#22c55e;--p-y:#eab308;--p-p:#a855f7;--p-h:#f9a8d4}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15151c;--fg:#eee;--card:#22222c;--line:#3a3a48;--mut:#aaa;--bo:#5a3a14;--orange:#ffa94d;--cyan:#3bc9db}}
+:root[data-theme="dark"]{--bg:#15151c;--fg:#eee;--card:#22222c;--line:#3a3a48;--mut:#aaa;--bo:#5a3a14;--orange:#ffa94d;--cyan:#3bc9db}
+body{margin:auto;padding:12px;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;max-width:720px}
+h1{font-size:18px;margin:4px 0 10px}h2{font-size:15px;margin:0 0 6px}
+a{color:inherit}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.mut{color:var(--mut);font-size:13px}
+button,select,input[type=text]{font:inherit;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
+button{cursor:pointer}
+button.p{background:var(--acc);color:#fff;border-color:var(--acc)}
+button:disabled{opacity:.4;cursor:default}
+[hidden]{display:none!important}
