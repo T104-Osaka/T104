@@ -518,7 +518,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         for (let r = 0; r <= 6; r++) {
             for (let c = 0; c <= 8; c++) {
                 const cell = document.createElement('div');
-                if (r === 0 && c === 0) { cell.className = 'cell origin-cell'; cell.textContent = '行\\列'; }
+                if (r === 0 && c === 0) { cell.className = 'cell origin-cell'; cell.textContent = '行/列'; }
                 else if (r === 0) { cell.className = 'cell header-cell'; cell.textContent = c; }
                 else if (c === 0) { cell.className = 'cell header-cell'; cell.style.width = '45px'; cell.textContent = r; }
                 else { cell.className = 'cell data-cell'; cell.innerHTML = '<div class="pz"></div>'; cell.id = `${gridId}-cell-${(r-1)*8 + (c-1)}`; }
