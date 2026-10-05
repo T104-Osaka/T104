@@ -148,7 +148,10 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                 <strong>補足. 予備1によるBE固定（拡張機能）</strong><br>
                 &emsp;「BE保」に <strong>1</strong> を入力して画像解析すると、盤面のぷよ色のみを最新に更新し、ボーナスエリアの配置は現在の設定のまま強制ロック（キープ）. 同じ編成でステージ周回する際に適宜使用.（通常時は 0 または空欄で自動解析.）<br><br>
                     <strong>補足. 山登り法（「山登り」欄）</strong><br>
-                    &emsp;0 または空欄なら従来のランダム探索. 1以上の数字を入れると山登り法になり、その回数だけ改善しなければ別の出発点へ移る（目安 300）. 山登り法では、探索後に Worker ごとの 5 秒ごとの最高点の推移が表示され、コピーもできる.
+                    &emsp;0 または空欄なら従来のランダム探索. 1以上の数字を入れると山登り法になり、その回数だけ改善しなければ別の出発点へ移る（目安 300）. 山登り法では、探索後に Worker ごとの 5 秒ごとの最高点の推移が表示され、コピーもできる.<br><br>
+                    <strong>補足. 予備12の指示（保存・読込・自動読込）</strong><br>
+                    &emsp;<strong>w_N</strong>: 現在の入力をスロットNへ保存.　<strong>r_N</strong>: スロットNを読み込む（予備12は書き換えない）.<br>
+                    &emsp;<strong>rr_N</strong>: 「探索開始」で監視を始め、2秒ごとにスロットNを見に行く. 盤面1行目（色行1）が前回と変わっていたら、r_N と同じ読み込みをして探索する. 探索が終わると「予備欄を表示」の横に「完了」ボタンが出て、その間は見に行かない. 「完了」を押すと監視を再開する.
             </div>
         </div>
     </div>
@@ -157,6 +160,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         <div class="side-input">
             <div id="input-section" class="input-grid fold"></div>
             <button id="spare-toggle" class="mini" onclick="toggleSpare()">▼ 予備欄を表示</button>
+            <button id="auto-done" class="mini" onclick="autoDone()" hidden style="margin-left:8px;background:var(--acc);color:#fff;border-color:var(--acc)">✅ 完了</button>
             <button class="btn" onclick="startSearch()">🚀 探索開始</button>
             
             <div class="best-score-container">
@@ -314,6 +318,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
             generatePlaybackSteps(colorArray, plusArray, bonusArray, tap);
 
             finishProgressBar();
+            autoSearchFinished();
         } 
         else if (e.data.type === 'PATTERNS') {
             addPatternCount(e.data.count);
@@ -327,6 +332,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         else if (e.data.type === 'NO_RESULT') {
             showNoResult();
             finishProgressBar();
+            autoSearchFinished();
         }
     };
 
@@ -545,51 +551,90 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         }
     }
 
+    // 📥 スロットの内容を入力欄・盤面に反映する（r_N と rr_N で共通）。予備12（指示欄）は書き換えない
+    function applySlotData(savedData, slotIndex) {
+        const inputs = document.querySelectorAll('.input-field');
+        savedData.forEach((textVal, idx) => {
+            if (idx === 35) return;
+            if (inputs[idx]) inputs[idx].value = textVal;
+        });
+        refreshOriginalBoard();
+        refreshNextRow();
+        document.getElementById('best-score-display').textContent = `読込完了(${slotIndex})`;
+    }
+
+    // ==AUTO-BEGIN==
+    // 🔁 自動読込（予備12が rr_N のとき、2秒ごとにスロットNを見に行く）
+    //   盤面1行目（色行1）が前回と変わっていたら、r_N と同じ読み込みをして探索する。
+    //   状態: watch=監視中 / busy=読込・探索中 / ack=「完了」ボタン待ち（busy と ack の間は見に行かない）
+    let autoTimer = null, autoGuard = null, autoSlot = null, autoPrevRow1 = null, autoState = 'watch';
+    function startAutoRead(slot) {
+        stopAutoRead();
+        autoSlot = slot; autoPrevRow1 = null; autoState = 'watch';
+        document.getElementById('best-score-display').textContent = `監視中(${slot})`;
+        autoTimer = setInterval(autoTick, 2000);
+        autoTick();   // 1回目は、比べる基準を取るだけ
+    }
+    function stopAutoRead() {
+        if (autoTimer) clearInterval(autoTimer);
+        if (autoGuard) clearTimeout(autoGuard);
+        autoTimer = null; autoGuard = null; autoState = 'watch';
+        document.getElementById('auto-done').hidden = true;
+    }
+    function autoTick() {
+        const f = document.querySelectorAll('.input-field')[35];
+        const m = f ? f.value.trim().match(/^rr_([0-9])$/) : null;
+        if (!m) { stopAutoRead(); return; }          // 予備12が rr_N でなくなったら監視をやめる
+        if (autoState !== 'watch') return;           // 読込・探索中、または「完了」ボタンが出ている間は見に行かない
+        autoSlot = m[1];
+        db.ref(`puyo_slots/slot_${autoSlot}`).once('value').then(snapshot => {
+            const data = snapshot.val();
+            if (!Array.isArray(data) || autoState !== 'watch') return;
+            const row1 = data[0];                    // 盤面の1行目（色行1）
+            if (autoPrevRow1 === null) { autoPrevRow1 = row1; return; }
+            if (row1 === autoPrevRow1) return;       // 変わっていなければ何もしない
+            autoPrevRow1 = row1;
+            autoState = 'busy';
+            applySlotData(data, autoSlot);           // r_N と同じ書き換え
+            const f2 = document.querySelectorAll('.input-field')[22];
+            const sec = parseInt(f2 && f2.value !== "" ? f2.value : placeholderHints[22]) || 2;
+            autoGuard = setTimeout(autoSearchFinished, (sec + 10) * 1000);   // 結果が届かなくても止まらないための保険
+            runNormalSearch();                       // その後、探索
+        }).catch(err => console.error("自動読込エラー:", err));
+    }
+    function autoSearchFinished() {                  // 探索が終わったら「完了」ボタンを出す
+        if (autoState !== 'busy') return;
+        if (autoGuard) { clearTimeout(autoGuard); autoGuard = null; }
+        autoState = 'ack';
+        document.getElementById('auto-done').hidden = false;
+    }
+    function autoDone() {                            // 「完了」が押されたら、再び見に行く
+        document.getElementById('auto-done').hidden = true;
+        if (autoTimer) autoState = 'watch';
+    }
+    // ==AUTO-END==
+
     function startSearch() {
         const inputs = document.querySelectorAll('.input-field');
         const reserve12Val = inputs[35] ? inputs[35].value.trim() : "";
 
-        const writeMatch = reserve12Val.match(/^w_([0-9])$/);
-        const readMatch  = reserve12Val.match(/^r_([0-9])$/);
+        const writeMatch  = reserve12Val.match(/^w_([0-9])$/);
+        const readMatch   = reserve12Val.match(/^r_([0-9])$/);
+        const repeatMatch = reserve12Val.match(/^rr_([0-9])$/);
+
+        // 🔁 【自動読込】2秒ごとにスロットを監視
+        if (repeatMatch) {
+            startAutoRead(repeatMatch[1]);
+            return;
+        }
+        stopAutoRead();   // rr_N 以外のときは、監視を止める
 
         // 📥 【読み込みのみ実行】
         if (readMatch) {
             const slotIndex = readMatch[1];
             db.ref(`puyo_slots/slot_${slotIndex}`).once('value').then(snapshot => {
                 const savedData = snapshot.val();
-                if (savedData && Array.isArray(savedData)) {
-                    savedData.forEach((textVal, idx) => {
-                        if (inputs[idx]) inputs[idx].value = textVal;
-                    });
-
-                    const logicMap = getLogicMap();
-                    for (let rowIdx = 0; rowIdx < 6; rowIdx++) {
-                        const rowStr  = (inputs[rowIdx].value || "").padStart(8, '0');
-                        const plusStr = (inputs[6 + rowIdx].value || "").padStart(8, '0');
-                        const beStr   = (inputs[12 + rowIdx].value || "").padStart(8, '0');
-                        for (let colIdx = 0; colIdx < 8; colIdx++) {
-                            const absCol = parseInt(rowStr[colIdx]) || 0;
-                            const isPlus = parseInt(plusStr[colIdx]) || 0;
-                            const isBon  = parseInt(beStr[colIdx]) || 0;
-                            const slot   = logicMap.indexOf(absCol);
-                            updateUICell("original-board", rowIdx * 8 + colIdx, slot !== -1 ? slot : absCol, isPlus, isBon);
-                        }
-                    }
-
-                    const nextColorsStr = (inputs[18].value || placeholderHints[18]).padStart(8, '1');
-                    const nextPlusStr   = (inputs[19].value || placeholderHints[19]).padStart(8, '0');
-                    const colors = ["transparent", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
-                    for (let i = 0; i < 8; i++) {
-                        const cell = document.getElementById(`next-cell-${i}`);
-                        if (cell) {
-                            const colorIdx = parseInt(nextColorsStr[i]) || 0;
-                            cell.style.backgroundColor = colors[colorIdx];
-                            cell.textContent = nextPlusStr[i] === "1" ? "+" : "";
-                        }
-                    }
-
-                    document.getElementById('best-score-display').textContent = `読込完了(${slotIndex})`;
-                }
+                if (savedData && Array.isArray(savedData)) applySlotData(savedData, slotIndex);
             }).catch(err => {
                 console.error("読込エラー:", err);
             });
@@ -610,7 +655,12 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
             return;
         }
 
-        // 🚀 【通常時のみ探索を実行】
+        // 🚀 【通常の探索を実行】
+        runNormalSearch();
+    }
+
+    function runNormalSearch() {
+        const inputs = document.querySelectorAll('.input-field');
         myExecs++;
         localStorage.setItem('puyo_my_execs', myExecs);
         db.ref('puyo_stats/execs').set(firebase.database.ServerValue.increment(1));
