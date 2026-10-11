@@ -63,7 +63,8 @@ input.input-field{width:62px;height:22px;font-size:12px;text-align:center;border
 .playback-header{display:flex;justify-content:space-between;align-items:center;width:100%;max-width:600px;margin-bottom:15px}
 .playback-title{font-size:1.2em;color:#e67e22;font-weight:700}
 .playback-status{font-size:1.1em;color:var(--acc);font-weight:700;background:var(--bg);padding:6px 16px;border-radius:20px;border:1px solid var(--line)}
-.playback-erase{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px;max-width:640px}
+.playback-row{display:flex;align-items:flex-end;justify-content:center;gap:16px;flex-wrap:wrap}
+.playback-erase{display:flex;flex-direction:column;gap:6px;min-width:128px}
 .erase-chip{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:4px 10px;font-size:.85em;line-height:1.25}
 .erase-chip.hot{border-color:#e67e22;box-shadow:0 0 0 2px rgba(230,126,34,.35)}
 .erase-chip.zero{opacity:.45}
@@ -194,11 +195,13 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         <div class="playback-header">
             <div class="playback-title">🎬 連鎖シミュレーション確認</div>
             <div id="playback-status" class="playback-status">待機中</div>
-            <div id="playback-erase" class="playback-erase"></div>
         </div>
+        <div class="playback-row">
         <div class="board-wrapper" style="align-items: center;">
             <div id="playback-next-row" class="next-puyo-row" style="margin-left: 45px;"></div>
             <div class="board-container"><div id="playback-board" class="grid"></div></div>
+        </div>
+        <div id="playback-erase" class="playback-erase"></div>
         </div>
         <div class="playback-controls">
             <button id="playback-prev" class="playback-btn" onclick="prevPlaybackStep()" disabled>◀ 戻る</button>
