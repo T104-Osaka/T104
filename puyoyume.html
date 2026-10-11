@@ -63,6 +63,12 @@ input.input-field{width:62px;height:22px;font-size:12px;text-align:center;border
 .playback-header{display:flex;justify-content:space-between;align-items:center;width:100%;max-width:600px;margin-bottom:15px}
 .playback-title{font-size:1.2em;color:#e67e22;font-weight:700}
 .playback-status{font-size:1.1em;color:var(--acc);font-weight:700;background:var(--bg);padding:6px 16px;border-radius:20px;border:1px solid var(--line)}
+.playback-erase{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px;max-width:640px}
+.erase-chip{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:4px 10px;font-size:.85em;line-height:1.25}
+.erase-chip.hot{border-color:#e67e22;box-shadow:0 0 0 2px rgba(230,126,34,.35)}
+.erase-chip.zero{opacity:.45}
+.erase-dot{width:16px;height:16px;border-radius:50%;border:1px solid rgba(0,0,0,.35);flex:0 0 auto}
+.erase-now{color:#e67e22;font-weight:700}
 .playback-controls{display:flex;gap:15px;margin-top:20px}
 .playback-btn{background:#3498db;color:#fff;border:none;padding:10px 24px;border-radius:20px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 3px rgba(0,0,0,.25)}
 .playback-btn:active{transform:translateY(2px);box-shadow:0 1px rgba(0,0,0,.25)}
@@ -188,6 +194,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         <div class="playback-header">
             <div class="playback-title">🎬 連鎖シミュレーション確認</div>
             <div id="playback-status" class="playback-status">待機中</div>
+            <div id="playback-erase" class="playback-erase"></div>
         </div>
         <div class="board-wrapper" style="align-items: center;">
             <div id="playback-next-row" class="next-puyo-row" style="margin-left: 45px;"></div>
@@ -759,7 +766,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
     };
 
     /* ==========================================================================
-       🎬 連鎖シミュレーションコマ送りエンジン（C言語 puyosim.c 完全準拠）
+       🎬 連鎖シミュレーションコマ送りエンジン（C言語 puyoyume.c 準拠）
        ========================================================================== */
     function generatePlaybackSteps(colorArray, plusArray, bonusArray, tapIndex) {
         const inputs = document.querySelectorAll('.input-field');
@@ -840,12 +847,15 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
 
             chainCount++;
             let stepScore = 0;
+            const eCnt = [0,0,0,0,0,0], ePts = [0,0,0,0,0,0];   // 実際の色(0=♡,1=赤..5=紫)ごとの消えた個数・点数
 
             for (let i = 0; i < 48; i++) {
                 if (toDelete[i]) {
                     const p = currentBoard[i].plus;
                     const b = fixedBonusArray[i];
-                    stepScore += (p ? 2 : 1) * (b ? 3 : 1) * coefInternal[currentBoard[i].color];
+                    const pt = (p ? 2 : 1) * (b ? 3 : 1) * coefInternal[currentBoard[i].color];
+                    stepScore += pt;
+                    eCnt[logicMap[currentBoard[i].color]]++; ePts[logicMap[currentBoard[i].color]] += pt;
                     if (!p && b && currentBoard[i].id >= 0) starSet.add(currentBoard[i].id);
 
                     currentBoard[i].color = -1;
@@ -858,6 +868,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
             playbackSteps.push({
                 desc: `第 ${chainCount} 連鎖消滅 (+${fm(stepScore)}点)`,
                 hit: toDelete.map((v, i) => v ? i : -1).filter(i => i >= 0),
+                erased: eCnt, erasedPts: ePts,
                 chain: chainCount,
                 score: totalScore,
                 board: JSON.parse(JSON.stringify(currentBoard)),
@@ -910,12 +921,15 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                 chainCount++;
                 postNextChains++;
                 let stepScore = 0;
+                const eCnt = [0,0,0,0,0,0], ePts = [0,0,0,0,0,0];
 
                 for (let i = 0; i < 48; i++) {
                     if (finalDelete[i]) {
                         const p = currentBoard[i].plus;
                         const b = fixedBonusArray[i];
-                        stepScore += (p ? 2 : 1) * (b ? 3 : 1) * coefInternal[currentBoard[i].color];
+                        const pt = (p ? 2 : 1) * (b ? 3 : 1) * coefInternal[currentBoard[i].color];
+                        stepScore += pt;
+                        eCnt[logicMap[currentBoard[i].color]]++; ePts[logicMap[currentBoard[i].color]] += pt;
                     if (!p && b && currentBoard[i].id >= 0) starSet.add(currentBoard[i].id);
 
                         currentBoard[i].color = -1;
@@ -928,6 +942,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                 playbackSteps.push({
                     desc: `第 ${chainCount} 連鎖消滅 (+${fm(stepScore)}点)`,
                     hit: finalDelete.map((v, i) => v ? i : -1).filter(i => i >= 0),
+                    erased: eCnt, erasedPts: ePts,
                     chain: chainCount,
                     score: totalScore,
                     board: JSON.parse(JSON.stringify(currentBoard)),
@@ -946,6 +961,12 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
             }
         }
 
+        // 色ごとの累計（各コマに持たせる）
+        { const cc = [0,0,0,0,0,0], cp = [0,0,0,0,0,0];
+          playbackSteps.forEach(st => {
+              if (st.erased) for (let k = 0; k < 6; k++) { cc[k] += st.erased[k]; cp[k] += st.erasedPts[k]; }
+              st.cumErased = cc.slice(); st.cumPts = cp.slice();
+          }); }
         playbackSteps[0].star = [...starSet]; // 最初の盤面にだけ印を付ける
         currentPlaybackIndex = 0;
         renderPlaybackStep(fixedBonusArray);
@@ -1063,6 +1084,16 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
 
         const step = playbackSteps[currentPlaybackIndex];
         document.getElementById('playback-status').textContent = `[${currentPlaybackIndex + 1}/${playbackSteps.length}] ${step.desc} (計 ${fm(step.score)}点)`;
+
+        // 色ごとの消去数（このコマ / 累計）
+        { const names = ["♡","赤","青","緑","黄","紫"];
+          const cols = ["#ffdae9","#ff3e3e","#4da3ff","#3eff3e","#ffeb3e","#ae81ff"];
+          const box = document.getElementById('playback-erase');
+          if (box) box.innerHTML = [1,2,3,4,5,0].map(k => {
+              const now = step.erased ? step.erased[k] : 0, cum = step.cumErased ? step.cumErased[k] : 0;
+              const pts = step.cumPts ? step.cumPts[k] : 0;
+              return `<div class="erase-chip${now > 0 ? ' hot' : ''}${cum === 0 ? ' zero' : ''}"><span class="erase-dot" style="background:${cols[k]}"></span><span>${names[k]} 計<b>${cum}</b>個${now > 0 ? ` <span class="erase-now">(+${now})</span>` : ''}<br><small>${fm(pts)}点</small></span></div>`;
+          }).join(''); }
 
         // 盤面描画
         for (let i = 0; i < 48; i++) {
