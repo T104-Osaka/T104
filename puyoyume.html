@@ -858,7 +858,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                     const b = fixedBonusArray[i];
                     const pt = (p ? 2 : 1) * (b ? 3 : 1) * coefInternal[currentBoard[i].color];
                     stepScore += pt;
-                    eCnt[logicMap[currentBoard[i].color]]++; ePts[logicMap[currentBoard[i].color]] += pt;
+                    eCnt[logicMap[currentBoard[i].color]] += (p ? 2 : 1); ePts[logicMap[currentBoard[i].color]] += pt;
                     if (!p && b && currentBoard[i].id >= 0) starSet.add(currentBoard[i].id);
 
                     currentBoard[i].color = -1;
@@ -932,7 +932,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                         const b = fixedBonusArray[i];
                         const pt = (p ? 2 : 1) * (b ? 3 : 1) * coefInternal[currentBoard[i].color];
                         stepScore += pt;
-                        eCnt[logicMap[currentBoard[i].color]]++; ePts[logicMap[currentBoard[i].color]] += pt;
+                        eCnt[logicMap[currentBoard[i].color]] += (p ? 2 : 1); ePts[logicMap[currentBoard[i].color]] += pt;
                     if (!p && b && currentBoard[i].id >= 0) starSet.add(currentBoard[i].id);
 
                         currentBoard[i].color = -1;
