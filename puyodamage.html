@@ -123,7 +123,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                 <strong>2. 塗り替える色</strong><br>
                 &emsp;・<strong>塗る色1</strong>: <select id="target-a" class="guide-select" onchange="syncGuideText()"><option value="1" selected>赤</option><option value="2">青</option><option value="3">緑</option><option value="4">黄</option><option value="5">紫</option></select>（<span id="label-a-name">赤</span>）. <strong>塗1:</strong> 欄に、<span id="label-a-color">赤</span>に塗り替える最大の個数（これ以下）を入力.<br>
                 &emsp;・<strong>塗る色2</strong>: <select id="target-b" class="guide-select" onchange="syncGuideText()"><option value="1">赤</option><option value="2" selected>青</option><option value="3">緑</option><option value="4">黄</option><option value="5">紫</option></select>（<span id="label-b-name">青</span>）. <strong>塗2:</strong> 欄に、<span id="label-b-color">青</span>に塗り替える最大の個数（これ以下）を入力. <strong>なぞ=0 のときは使いません</strong>.<br>
-                &emsp;・<strong>先に塗る色</strong>: <select id="order-sel" class="guide-select" onchange="syncOrder(true)"><option value="0" selected>任意（どちらからでもよい）</option><option value="1">色1から</option><option value="2">色2から</option></select>（なぞ=1以上のとき）. 「色1から」「色2から」を選ぶと、その色を先に塗っても途中で4つつながって消えない塗り方だけを探します. 「任意」のときは、どちらの順でもよく、結果の欄に先に塗る色が表示されます.<br><br>
+                &emsp;・<strong>先に塗る色</strong>: <select id="order-sel" class="guide-select" onchange="syncOrder(true)"><option value="0" selected>任意（どちらからでもよい）</option><option value="1">色1から</option><option value="2">色2から</option></select>（なぞ=1以上のとき）. 「色1から」「色2から」を選ぶと、その色を先に塗っても途中で4つつながって消えない塗り方だけを探します. 「任意」のときは、どちらの順でもよく、結果の欄の末尾に、先に塗る色が●で表示されます（解析シムと同じ）.<br><br>
 
                 <strong>3. なぞり消し</strong><br>
                 &emsp;・<strong>なぞ:</strong> なぞり消しする最大の個数（小数は切り捨て）.<br>
@@ -841,20 +841,17 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         target.innerHTML = `${row} 行 ${col} 列 <span style="color: ${colorCode}; margin-left: 12px; font-size: 1.2em; text-shadow: 0 0 10px ${colorCode};">●</span>`;
     };
 
-    // なぞり位置の欄。なぞ=1以上のときは、先に塗る色（● 色1 → ● 色2）も出す
+    // なぞり位置の欄。解析シムと同じく、末尾に「先に塗る色」の●を出す（なぞ=1以上のとき）
     function showTraceResult(text, priority) {
         const box = document.getElementById('trace-result');
-        box.textContent = text;
-        if (getTraceCount() < 1 || (priority !== 1 && priority !== 2)) return;
-        const lm = getLogicMap(), names = ["♡", "赤", "青", "緑", "黄", "紫"];
-        const dot = slot => { const a = lm[slot]; return `<span style="color:${COLORS_UI[a]};text-shadow:0 0 6px ${COLORS_UI[a]}">●</span>${names[a]}`; };
-        const second = priority === 1 ? 2 : 1;
+        if (getTraceCount() < 1 || (priority !== 1 && priority !== 2)) { box.textContent = text; return; }
+        const col = COLORS_UI[getLogicMap()[priority]] || "#fff";
         box.innerHTML = '';
-        const t = document.createElement('div'); t.textContent = text;
-        const o = document.createElement('div');
-        o.style.cssText = 'font-size:.8em;margin-top:2px';
-        o.innerHTML = `先に塗る色: ${dot(priority)} → ${dot(second)}`;
-        box.appendChild(t); box.appendChild(o);
+        box.appendChild(document.createTextNode(text + ' '));
+        const dot = document.createElement('span');
+        dot.textContent = '●';
+        dot.style.cssText = `color:${col};margin-left:12px;font-size:1.2em;text-shadow:0 0 10px ${col}`;
+        box.appendChild(dot);
     }
     const COLORS_UI = ["#ffdae9", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
     function describeTrace(cells) {
