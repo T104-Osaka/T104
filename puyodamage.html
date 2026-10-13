@@ -62,12 +62,13 @@ input.input-field{width:62px;height:22px;font-size:12px;text-align:center;border
 .btn{background:var(--acc);color:#fff;padding:12px;border:none;border-radius:30px;cursor:pointer;width:100%;margin-top:15px;font-weight:700;font-size:1.1em;box-shadow:0 4px rgba(0,0,0,.25)}
 .btn:active{transform:translateY(2px);box-shadow:0 2px rgba(0,0,0,.25)}
 .playback-section{margin:40px auto;padding:25px;border-left:6px solid #e67e22;display:flex;flex-direction:column;align-items:center}
-.playback-header{display:flex;justify-content:space-between;align-items:center;width:100%;max-width:600px;margin-bottom:15px}
-.playback-title{font-size:1.2em;color:#e67e22;font-weight:700}
-.playback-status{font-size:1.1em;color:var(--acc);font-weight:700;background:var(--bg);padding:6px 16px;border-radius:20px;border:1px solid var(--line)}
+.playback-header{display:flex;justify-content:center;align-items:center;gap:16px;flex-wrap:wrap;width:100%;max-width:1100px;margin-bottom:15px}
+.playback-title{font-size:1.2em;color:#e67e22;font-weight:700;white-space:nowrap}
+.playback-status{font-size:1.1em;color:var(--acc);font-weight:700;background:var(--bg);padding:6px 16px;border-radius:20px;border:1px solid var(--line);white-space:nowrap}
 .playback-row{display:flex;align-items:flex-end;justify-content:center;gap:16px;flex-wrap:wrap}
-.playback-erase{display:flex;flex-direction:column;gap:6px;min-width:190px}
-.erase-chip{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:4px 10px;font-size:.85em;line-height:1.25}
+.playback-erase{display:flex;flex-direction:column;gap:6px;white-space:nowrap}
+.erase-grid{display:grid;grid-template-columns:repeat(2,auto);grid-template-rows:repeat(3,auto);grid-auto-flow:column;gap:6px}
+.erase-chip{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:4px 8px;font-size:.85em;line-height:1.25;white-space:nowrap}
 .erase-chip.hot{border-color:#e67e22;box-shadow:0 0 0 2px rgba(230,126,34,.35)}
 .erase-chip.zero{opacity:.45}
 .erase-sum{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:.85em;line-height:1.5}
@@ -287,9 +288,9 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         "13121232", "25241231", "21545231", "45512452", "44132442", "35545511",
         "10001001", "01100111", "01011101", "11011011", "11110011", "01111011",
         "00000000", "10001100", "11001010", "01000111", "01101011", "00110110",
-        "11111111", "11111111", "12", "12", "2", "10",
-        "0", "2", "400", "1000", "1000", "1000",
-        "1000", "1000", "5", "1", "1", "55",
+        "11111111", "11111111", "12", "12", "2", "2",
+        "0", "3", "400", "1000", "1000", "1000",
+        "1000", "1000", "1", "1", "1", "55",
         "35", "10", "0", "0", "0", "0",
         "0", "0", "0", "0", "0", "0",
         "0", "0", "0", "0", "0", "rr_1"
@@ -1214,13 +1215,13 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
           const box = document.getElementById('playback-erase');
           const inf = step.info, cb = step.cumBoost || 0;
           let html = `<div class="erase-sum">${inf ? `第${inf.k}連鎖: 分離数 <b>${inf.groups}</b> ・連鎖倍率 <b>×${fm(inf.chainMult)}</b><br>` : ''}ブースト <b>${cb}</b>個 → <b>+${Math.min(cb * 4, 200)}%</b><br><small>ダメージは最終ブースト ×${fm(step.finalMult || 1)} 込み</small></div>`;
-          html += [1,2,3,4,5,0].map(k => {
+          html += '<div class="erase-grid">' + [1,2,3,4,5,0].map(k => {
               const now = step.erased ? step.erased[k] : 0, cum = step.cumErased ? step.cumErased[k] : 0;
               const pts = step.cumPts ? step.cumPts[k] : 0;
-              const sub = (inf && k >= 1 && inf.nC[k] > 0) ? `<br><small>同時${inf.nC[k]}個 ×${fm(inf.sameMult[k])} → +${fmt(step.erasedPts[k])}</small>` : '';
-              const line2 = k === 0 ? '<small>同時消しに数えない</small>' : `<small>${fmt(pts)}</small>`;
+              const sub = (inf && k >= 1 && inf.nC[k] > 0) ? `<br><small>同時${inf.nC[k]}×${fm(inf.sameMult[k])}→+${fmt(step.erasedPts[k])}</small>` : '';
+              const line2 = k === 0 ? '<small>同時消し外</small>' : `<small>${fmt(pts)}</small>`;
               return `<div class="erase-chip${now > 0 ? ' hot' : ''}${cum === 0 ? ' zero' : ''}"><span class="erase-dot" style="background:${cols[k]}"></span><span>${names[k]} 計<b>${cum}</b>個${now > 0 ? ` <span class="erase-now">(+${now})</span>` : ''}<br>${line2}${sub}</span></div>`;
-          }).join('');
+          }).join('') + '</div>';
           if (box) box.innerHTML = html; }
 
         // 盤面描画
