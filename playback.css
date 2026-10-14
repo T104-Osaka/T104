@@ -1,0 +1,11 @@
+/* css/playback.css — 連鎖シミュレーション（コマ送り）の共通部品
+   共通: 外枠(.playback-section) / 見出し(.playback-header .playback-title .playback-status) / 操作ボタン(.playback-controls .playback-btn)
+   ページごとに違う部分（盤面の横の消去数の枠 .playback-row .playback-erase .erase-* など）は、各ページに書く */
+.playback-section{width:95%;max-width:1280px;margin:40px auto;padding:25px;background:var(--card);border:1px solid var(--line);border-left:6px solid #e67e22;border-radius:10px;display:flex;flex-direction:column;align-items:center}
+.playback-header{display:flex;justify-content:center;align-items:center;gap:16px;flex-wrap:wrap;width:100%;max-width:1100px;margin-bottom:15px}
+.playback-title{font-size:1.2em;color:#e67e22;font-weight:700;white-space:nowrap}
+.playback-status{font-size:1.1em;color:var(--acc);font-weight:700;background:var(--bg);padding:6px 16px;border-radius:20px;border:1px solid var(--line);white-space:nowrap}
+.playback-controls{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;justify-content:center}
+.playback-btn{background:#3498db;color:#fff;border:none;padding:10px 24px;border-radius:20px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 3px rgba(0,0,0,.25)}
+.playback-btn:active{transform:translateY(2px);box-shadow:0 1px rgba(0,0,0,.25)}
+.playback-btn:disabled{background:#7f8c8d;box-shadow:none}
