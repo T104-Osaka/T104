@@ -123,7 +123,8 @@ table.sum td:first-child,table.sum th:first-child{text-align:left}
         「なぞり消しの代わりに、なぞったぷよを指定の色にぬりかえる」<strong>とくべつルール</strong>系スキル用です. なぞったぷよは消えずに指定色に変わり、<strong>そのあと4つ以上つながった所が消えて連鎖</strong>が始まります.<br>
         <strong>1. 盤面を入れる</strong>: 左の欄に直接入力するか、<strong>写真から読み込み</strong>、または<strong>Firebaseの保存枠から読込</strong>（ダメージシム・うたたねシム・解析シム・確認用・このページの保存）. NEXT と、攻撃・同時×・連鎖× も入れます.<br>
         <strong>2. 条件を決める</strong>: <strong>塗る色</strong>と<strong>最大なぞり数</strong>を選びます. なぞる形は なぞり消しと同じで、縦横斜めに全部つながっていて、2〜6行目に1つ以上含む必要があります.<br>
-        <strong>3. 探索</strong>: 「🔍 探索」で、複数のWorkerが山登り法でダメージが大きいなぞり方を探します（時間は秒で指定）. C言語版（tokubetu_rule.js / .wasm と、tokubetu_rule_worker.js・tokubetu_rule_sub_worker.js）が置いてあれば自動でそちらを使い、無ければ JavaScript 版で探します（画面の「エンジン」表示で確認できます）. <strong>粘り</strong>は、改善しなくなってから別の出発点に移るまでのゆさぶり回数です. 結果の上位10件から「盤面に反映」で切り替えられます.<br>
+        <strong>3. 探索</strong>: 「🚀 探索開始」で、複数のWorkerが山登り法でダメージが大きいなぞり方を探します（時間は秒で指定）. C言語版（tokubetu_rule.js / .wasm と、tokubetu_rule_worker.js・tokubetu_rule_sub_worker.js）が置いてあれば自動でそちらを使い、無ければ JavaScript 版で探します（画面の「エンジン」表示で確認できます）. <strong>粘り</strong>は、改善しなくなってから別の出発点に移るまでのゆさぶり回数です. 結果の上位10件から「盤面に反映」で切り替えられます.<br>
+        <strong>予備12（指示欄）</strong>: 「🚀 探索開始」を押したときの動きを決めます（解析シムなどと同じ）. 空欄/それ以外＝そのまま探索. <strong>w_N</strong>＝いまの内容をこのページの枠Nへ保存. <strong>r_N</strong>＝「読み込み元」で選んだ保存先の枠Nを読込. <strong>rr_N</strong>＝「読み込み元」の枠Nを2秒ごとに見に行き、盤面の1行目が前回と変わったら読み込んで探索します（探索が終わると「✅ 完了」が出て、押すと監視を再開）.<br>
         <strong>4. 手で試す</strong>: 「塗り後の盤面」をクリック（ドラッグ可）すると、そのマスをなぞったことにして、結果とコマ送りがすぐ更新されます.<br>
         ダメージの式は ダメージシム（puyodamage）と同じです（連鎖欄＋1回まで NEXT 後の連鎖を数える・最終ブースト込み）. 探索は山登りなので、最大なぞり数が大きいほど最適解を取りこぼす可能性があります（時間を延ばす・何回か実行してください）.
     </div></div>
@@ -173,10 +174,12 @@ table.sum td:first-child,table.sum th:first-child{text-align:left}
                 <label class="opt">最大なぞり数<input type="number" id="max-trace" min="1" max="48" value="10"></label>
                 <label class="opt">探索(秒)<input type="number" id="search-sec" min="1" max="600" value="30"></label>
                 <label class="opt">粘り<input type="number" id="patience" min="1" max="100000" value="20"></label>
-                <button id="search-btn" onclick="startSearch()">🔍 探索</button>
+                <label class="opt" title="w_N:枠Nへ保存 / r_N:枠Nを読込 / rr_N:2秒ごとに枠Nを見に行き、盤面1行目が変わったら読込して探索">予備12<input type="text" id="spare12" value="rr_1" style="width:64px" autocomplete="off"></label>
+                <button id="search-btn" onclick="startSearch()">🚀 探索開始</button>
+                <button id="auto-done" class="mini" onclick="autoDone()" hidden style="background:var(--acc);color:#fff;border-color:var(--acc)">✅ 完了</button>
                 <button class="mini" onclick="clearTrace()">なぞりを全消し</button>
             </div>
-            <div id="search-status">条件を入れて「🔍 探索」を押してください</div>
+            <div id="search-status">条件を入れて「🚀 探索開始」を押してください</div>
             <div id="engine-label" style="font-size:11px;color:var(--mut);padding:0 12px 6px">エンジン: 探索を始めると自動で判定します（C言語版 → 無ければ JavaScript 版）</div>
             <div id="cand-box"></div>
         </div>
@@ -712,7 +715,7 @@ function renderAll() {
     const changed = cells.filter(i => inp.orig[i] !== X).length;
     const msgs = [];
     msgs.push(['', `塗る色: <b>${NAMES[X]}</b>　なぞり <b>${cells.length}</b>個（色が変わる ${changed}個）／ 最大 ${N}個`]);
-    if (!cells.length) msgs.push(['warn', 'なぞるマスが選ばれていません. 盤面をクリック（ドラッグ可）するか、「🔍 探索」で最適なぞりを探します.']);
+    if (!cells.length) msgs.push(['warn', 'なぞるマスが選ばれていません. 盤面をクリック（ドラッグ可）するか、「🚀 探索開始」で最適なぞりを探します.']);
     else {
         if (cells.length > N) msgs.push(['warn', `⚠️ 最大なぞり数(${N}個)より多く選んでいます.`]);
         if (!traceValid(cells)) {
@@ -857,8 +860,66 @@ function buildCsv(inp, seconds, patience, seed) {
         paintColor, maxTrace(), seconds, patience, seed >>> 0, 0].join(',');
 }
 let engineName = '';
+/* 「🚀 探索開始」: 予備12 の指示（w_N / r_N / rr_N）に従う。解析シム・うたたね・ダメージシムと同じ動き */
+let rrTimer = null, autoGuard = null, autoPrevRow1 = null, autoState = 'watch';   // watch=監視中 / busy=読込・探索中 / ack=「完了」待ち
 function startSearch() {
     if (searching) { stopSearch(); return; }
+    const cmd = (document.getElementById('spare12').value || '').trim();
+    const rr = cmd.match(/^rr_([0-9])$/), r = cmd.match(/^r_([0-9])$/), w = cmd.match(/^w_([0-9])$/);
+    if (rr) { startAutoRead(rr[1]); return; }
+    stopAutoRead();
+    if (r) { loadSlot(r[1]); return; }
+    if (w) { saveSlot(w[1]); return; }
+    runNormalSearch();
+}
+function startAutoRead(slot) {
+    stopAutoRead();
+    autoPrevRow1 = null; autoState = 'watch';
+    setSearchStatus(`監視中（読み込み元の枠${slot}を2秒ごとに確認）`);
+    rrTimer = setInterval(autoTick, 2000);
+    autoTick();                                              // 1回目は、比べる基準を取るだけ
+}
+function stopAutoRead() {
+    if (rrTimer) clearInterval(rrTimer);
+    if (autoGuard) clearTimeout(autoGuard);
+    rrTimer = null; autoGuard = null; autoState = 'watch';
+    document.getElementById('auto-done').hidden = true;
+}
+function autoTick() {
+    const m = (document.getElementById('spare12').value || '').trim().match(/^rr_([0-9])$/);
+    if (!m) { stopAutoRead(); return; }                      // 予備12が rr_N でなくなったら監視をやめる
+    if (autoState !== 'watch' || !db) return;                // 読込・探索中、または「完了」ボタンが出ている間は見に行かない
+    const src = document.getElementById('src-sel').value, n = m[1];
+    db.ref(`${src}/slot_${n}`).once('value').then(snap => {
+        const d = snap.val();
+        if (d === null || d === undefined || autoState !== 'watch') return;
+        const row1 = slotRow1(src, d);
+        if (row1 === null) return;
+        if (autoPrevRow1 === null) { autoPrevRow1 = row1; return; }
+        if (row1 === autoPrevRow1) return;                   // 変わっていなければ何もしない
+        autoPrevRow1 = row1;
+        autoState = 'busy';
+        const name = applySnap(src, d);
+        if (name === null) { autoState = 'watch'; return; }
+        setStatus(`自動読込（${name} 枠${n}）`);
+        clearResults();
+        const sec = numOr('search-sec', 10, 1, 600);
+        autoGuard = setTimeout(autoSearchFinished, (sec + 10) * 1000);   // 結果が届かなくても止まらないための保険
+        runNormalSearch();
+    }).catch(err => console.error('自動読込エラー:', err));
+}
+function autoSearchFinished() {                              // 探索が終わったら「完了」ボタンを出す
+    if (autoState !== 'busy') return;
+    if (autoGuard) { clearTimeout(autoGuard); autoGuard = null; }
+    autoState = 'ack';
+    document.getElementById('auto-done').hidden = false;
+}
+function autoDone() {                                        // 「完了」が押されたら、再び見に行く
+    document.getElementById('auto-done').hidden = true;
+    if (rrTimer) { autoState = 'watch'; setSearchStatus('監視中（読み込み元の枠を2秒ごとに確認）'); }
+}
+function runNormalSearch() {
+    if (searching) return;
     const inp = readInput();
     const job = { inp, seconds: numOr('search-sec', 10, 1, 600), patience: Math.round(numOr('patience', 20, 1, 100000)), X: paintColor, N: maxTrace() };
     cands = []; searching = true; poolBest = new Map();
@@ -880,7 +941,7 @@ function launchPool(kind, job) {
         if (dead || started) return;
         teardown();
         if (kind === 'c') { console.warn('C版を使えないのでJS版に切り替えます:', why); launchPool('js', job); }
-        else { setSearchStatus('Workerを作れませんでした: ' + why); searching = false; document.getElementById('search-btn').textContent = '🔍 探索'; }
+        else { setSearchStatus('Workerを作れませんでした: ' + why); searching = false; document.getElementById('search-btn').textContent = '🚀 探索開始'; }
     };
     const begin = () => {
         started = true; clearTimeout(fb); engineName = kind === 'c' ? `C版(wasm)×${subCount}` : `JS版×${nw}`;
@@ -927,9 +988,10 @@ function finishSearch() {
     searching = false;
     clearInterval(poolTimer); poolTimer = null;
     pool.forEach(w => w.terminate()); pool = [];
-    document.getElementById('search-btn').textContent = '🔍 探索';
+    document.getElementById('search-btn').textContent = '🚀 探索開始';
     updateSearchView(true);
     if (cands.length) applyCand(0);
+    autoSearchFinished();
 }
 function sortedCands() { return [...poolBest.values()].sort((a, b) => b.sc - a.sc || a.cells.length - b.cells.length); }
 function updateSearchView(final) {
@@ -999,26 +1061,34 @@ function applyOwn(d) {
     if (d.maxTrace) document.getElementById('max-trace').value = d.maxTrace;
     setColor(paintColor);
 }
-function loadSlot() {
-    if (!db) { setStatus('Firebaseに接続できません'); return; }
-    const src = document.getElementById('src-sel').value, n = document.getElementById('slot-sel').value;
-    setStatus('読込中...');
-    db.ref(`${src}/slot_${n}`).once('value').then(snap => {
-        const d = snap.val();
-        if (d === null || d === undefined) { setStatus(`枠${n}にデータがありません`); return; }
-        if (src === 'tokubetu_rule_slots') { applyOwn(d); setStatus(`読込完了（このページ 枠${n}）`); return; }
-        if (src === 'puyokakuninn_slots') {                  // 確認用は盤面・NEXT・ダメージ設定だけ取り込む（塗り・なぞりは使わない）
-            applyOwn({ f: d.f || [] }); setStatus(`読込完了（確認用 枠${n}）`); return;
-        }
-        const arr = toArray(d);
-        if (!arr) { setStatus('データの形式が違います'); return; }
-        applyForeign(arr, src);
-        setStatus(`読込完了（${document.getElementById('src-sel').selectedOptions[0].textContent} 枠${n}）`);
-    }).catch(err => { console.error(err); setStatus('読込エラー: ' + err.message); });
+// 保存データを画面に反映する。反映できたら保存先の名前、できなければ null
+function applySnap(src, d) {
+    if (src === 'tokubetu_rule_slots') { applyOwn(d); return 'このページ'; }
+    if (src === 'puyokakuninn_slots') { applyOwn({ f: d.f || [] }); return '確認用'; }   // 盤面・NEXT・ダメージ設定だけ（塗り・なぞりは使わない）
+    const arr = toArray(d);
+    if (!arr) return null;
+    applyForeign(arr, src);
+    return document.getElementById('src-sel').selectedOptions[0].textContent;
 }
-function saveSlot() {
+function slotRow1(src, d) {                                  // 盤面1行目（色行1）。変化の検知に使う
+    if (src === 'tokubetu_rule_slots' || src === 'puyokakuninn_slots') return String((d.f || [])[0] ?? '');
+    const arr = toArray(d); return arr ? String(arr[0] ?? '') : null;
+}
+function loadSlot(nOverride) {
+    if (!db) { setStatus('Firebaseに接続できません'); return Promise.resolve(false); }
+    const src = document.getElementById('src-sel').value, n = nOverride != null ? nOverride : document.getElementById('slot-sel').value;
+    setStatus('読込中...');
+    return db.ref(`${src}/slot_${n}`).once('value').then(snap => {
+        const d = snap.val();
+        if (d === null || d === undefined) { setStatus(`枠${n}にデータがありません`); return false; }
+        const name = applySnap(src, d);
+        if (name === null) { setStatus('データの形式が違います'); return false; }
+        setStatus(`読込完了（${name} 枠${n}）`); return true;
+    }).catch(err => { console.error(err); setStatus('読込エラー: ' + err.message); return false; });
+}
+function saveSlot(nOverride) {
     if (!db) { setStatus('Firebaseに接続できません'); return; }
-    const n = document.getElementById('slot-sel').value;
+    const n = nOverride != null ? nOverride : document.getElementById('slot-sel').value;
     const f = []; for (let i = 0; i < NF; i++) f.push(F(i).value);
     const data = {
         v: 1, f, color: paintColor, maxTrace: maxTrace(),
@@ -1225,6 +1295,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     setupPaintBoard();
     setColor(paintColor);
+    setTimeout(startSearch, 670);                            // 解析シムなどと同じ: 開いた直後に「探索開始」相当（初期値 rr_1 は監視開始）
 });
 </script>
 </body>
