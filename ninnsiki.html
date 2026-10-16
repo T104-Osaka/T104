@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="css/base.css">
+<title>ぷよクエ 画像認識 学習ツール（ninnsiki）</title>
+<meta name="description" content="TensorFlow.js の MobileNet で、ぷよの色・ボーナス・プラスなどの画像を分類し、人が修正して登録、判定ベクトルをJSONで書き出すツールです。">
+<meta property="og:title" content="ぷよクエ 画像認識 学習ツール">
+<meta property="og:description" content="盤面や好きな画像を切り取って分類・登録し、自分用の判定ベクトルを作ります。">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<style>
+body{max-width:980px;margin:0 auto;padding:14px;line-height:1.4}
+h1{color:var(--acc);text-align:center;font-size:1.5em;margin:6px 0 12px}
+h2{font-size:1.02em;margin:0 0 8px}
+.nav-back{margin:0 0 10px}.nav-back a{font-weight:700;font-size:.95em}
+.card{padding:12px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:7px 14px;background:var(--card)}
+.seg button.on{background:var(--acc);color:#fff;font-weight:700}
+.badge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;border:1px solid var(--line);color:var(--mut)}
+.badge.ok{color:#2b8a3e;border-color:#2b8a3e}.badge.ng{color:#c92a2a;border-color:#c92a2a}
+#msg{min-height:1.4em;font-size:13px;color:var(--mut);margin-top:6px;white-space:pre-wrap}
+.dz{border:2px dashed #3498db;border-radius:10px;padding:10px;text-align:center}
+#prev-wrap{position:relative;margin-top:8px;max-width:100%;overflow:auto;text-align:center}
+#prev{max-width:100%;border:1px solid var(--line);border-radius:6px;background:#888;touch-action:pan-y}
+#prev.draw{cursor:crosshair;touch-action:none}
+.cols{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
+.grid{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;width:min(100%,400px)}
+.pc{position:relative;border:2px solid var(--line);border-radius:5px;overflow:hidden;background:#222;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none}
+.pc canvas{display:block;width:100%;height:auto}
+.pc .dot{position:absolute;left:2px;bottom:2px;width:15px;height:15px;border-radius:50%;border:1.5px solid #fff;font-size:10px;color:#fff;text-align:center;line-height:12px;font-weight:700}
+.pc .pl{position:absolute;right:2px;top:0;font-size:17px;font-weight:900;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000}
+.pc.bo{border-color:var(--orange);box-shadow:inset 0 0 0 2px var(--orange)}
+.pc.low{outline:3px dashed #e03131;outline-offset:-3px}
+.pc.nx{border-color:var(--cyan)}
+.c0{background:var(--p-h)}.c1{background:var(--p-r)}.c2{background:var(--p-b)}.c3{background:var(--p-g)}.c4{background:var(--p-y)}.c5{background:var(--p-p)}
+.tools{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0}
+.tools button{padding:5px 9px;font-size:13px}
+.tools button.on{outline:3px solid var(--acc);font-weight:700}
+.tools .sw{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+textarea{width:100%;box-sizing:border-box;font:13px/1.3 ui-monospace,monospace;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{border-bottom:1px solid var(--line);padding:3px 6px;text-align:left;vertical-align:middle}
+th{color:var(--mut);font-weight:600}
+td.n{text-align:right;font-variant-numeric:tabular-nums}
+.items{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.it{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:5px;flex-wrap:wrap}
+.it canvas{width:64px;height:64px;object-fit:contain;background:#444;border-radius:4px}
+.it input{width:11em}
+.it .pr{font-size:12px;color:var(--mut)}
+.hm{border-radius:3px;image-rendering:pixelated;width:64px;height:auto;background:#888}
+details>summary{cursor:pointer;font-weight:700}
+.ok{color:#2b8a3e}.ng{color:#c92a2a}
+label.ck{display:inline-flex;gap:4px;align-items:center;font-size:13px}
+</style>
+</head>
+<body>
+<div class="nav-back"><a href="index.html">← ポータルへ戻る</a></div>
+<h1>ぷよクエ 画像認識 学習ツール</h1>
+
+<div class="card">
+  <div class="row" style="margin-top:0">
+    <div class="seg" id="mode-seg">
+      <button data-m="puyo" class="on">ぷよモード</button>
+      <button data-m="other">それ以外モード</button>
+    </div>
+    <label>判定方法
+      <select id="method">
+        <option value="rule">従来ルール（今までの色判定）</option>
+        <option value="learn">学習した判定（kNN）</option>
+      </select>
+    </label>
+    <label>特徴量
+      <select id="embsel">
+        <option value="mobilenet" disabled>MobileNet（読込中…）</option>
+        <option value="pixel8">簡易ピクセル（軽量・精度低）</option>
+      </select>
+    </label>
+    <span id="embstat" class="badge">準備中</span>
+  </div>
+  <div class="mut" id="mode-help"></div>
+  <div id="msg"></div>
+</div>
+
+<div class="card">
+  <h2>① 画像を入れる</h2>
+  <div class="dz">
+    <input type="file" id="file" accept="image/*">
+    <div class="mut">画像をここにドロップ／貼り付け（Ctrl+V）でも読み込めます</div>
+  </div>
+  <div class="row" id="puyo-img-row">
+    <button id="btn-manual">盤面の範囲を手動で指定</button>
+    <span class="mut">自動で盤面が見つからないとき、または切り取りがずれたとき。ドラッグで「NEXT段の上端〜盤面の下端」を囲みます。</span>
+  </div>
+  <div class="row" id="other-img-row" hidden>
+    <span class="mut">画像の上をドラッグして長方形に切り取ります（何個でも）。</span>
+    <label class="ck"><input type="checkbox" id="sameLabel">続けて切り取るとき直前と同じ名前を入れる</label>
+    <button id="btn-clear-rects">切り取りを全部消す</button>
+  </div>
+  <div id="prev-wrap"><canvas id="prev" width="10" height="10" hidden></canvas></div>
+</div>
+
+<div class="card" id="puyo-card">
+  <h2>② 判定を確認して修正する（ぷよモード）</h2>
+  <div class="row" style="margin-top:0">
+    <label class="ck"><b><input type="checkbox" id="lock"> 判定を固定して読み込む</b></label>
+    <span class="mut">（ON：新しい画像を入れても、今の盤面の判定を変えず、切り取り画像だけ入れ替えます）</span>
+  </div>
+  <div class="row" style="margin-top:2px">
+    固定する項目：
+    <label class="ck"><input type="checkbox" class="lk" data-h="color" checked>色</label>
+    <label class="ck"><input type="checkbox" class="lk" data-h="bonus" checked>BE</label>
+    <label class="ck"><input type="checkbox" class="lk" data-h="plus" checked>プラス</label>
+    <label class="ck"><input type="checkbox" class="lk" data-h="next" checked>NEXT</label>
+  </div>
+  <div class="tools" id="tools"></div>
+  <div class="cols">
+    <div style="flex:1 1 300px">
+      <div class="mut">上段＝NEXT（水色の枠） / 橙の枠＝ボーナスエリア / 赤い点線＝学習判定の自信が低いマス</div>
+      <div class="grid" id="grid-next"></div>
+      <div class="grid" id="grid" style="margin-top:6px"></div>
+    </div>
+    <div style="flex:1 1 220px">
+      <div class="mut">入力欄用の文字（色6行・プラス6行・BE6行・NEXT）</div>
+      <textarea id="txt" rows="8" readonly></textarea>
+      <div class="row"><button id="btn-copytxt">コピー</button></div>
+    </div>
+  </div>
+  <div class="row">
+    <button class="p" id="btn-reg">登録する</button>
+    <button id="btn-undo">直前の登録を取り消す</button>
+    <span class="mut" id="reg-note"></span>
+  </div>
+</div>
+
+<div class="card" id="other-card" hidden>
+  <h2>② 名前を割り当てる（それ以外モード）</h2>
+  <div class="mut">名前の欄は、既にあるクラスを選ぶか、新しい名前をそのまま入力すると登録時に新しいクラスになります。学習データがあると予測が入ります。</div>
+  <div class="items" id="items"></div>
+  <datalist id="classlist"></datalist>
+  <div class="row">
+    <button class="p" id="btn-reg2">登録する</button>
+    <button id="btn-undo2">直前の登録を取り消す</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>③ いまの判定ベクトルと正答率</h2>
+  <div class="mut">登録のたびに更新されます。「1個除外」は自分だけ抜いて当てた率、「同じ登録を除外」は同じ画像の仲間も抜いて当てた率（初見の盤面に近い）、「代表ベクトル」は書き出す軽量JSONで判定した場合の率です。</div>
+  <div id="stats">（まだデータがありません）</div>
+  <h2 style="margin-top:12px">登録時の判定の的中率（登録前の判定を人が直した結果）</h2>
+  <div id="hist" class="mut">（まだ登録がありません）</div>
+</div>
+
+<div class="card">
+  <h2>④ JSONで取り出す／取り込む</h2>
+  <div class="row" style="margin-top:0">
+    <button class="p" id="btn-exp-light">軽量JSON（代表ベクトルのみ）</button>
+    <button id="btn-exp-full">全サンプル入りJSON（バックアップ・再学習用）</button>
+    <label class="ck">取り込み：<input type="file" id="imp" accept=".json,application/json"></label>
+  </div>
+  <div class="mut" id="exp-info"></div>
+  <details style="margin-top:8px"><summary>詳細設定</summary>
+    <div class="row">
+      <label>MobileNetのモデルURL（通常は空）<input type="text" id="modelurl" style="width:22em"></label>
+      <button id="btn-reload-model">再読込</button>
+    </div>
+    <div class="row"><button id="btn-clear" style="color:#c92a2a">保存データをすべて削除</button>
+    <span class="mut" id="dbstat"></span></div>
+  </details>
+</div>
+
+<div id="update-log"></div>
+
+<script src="js/updatelog.js"></script>
+<script>
+const UPDATE_LOG = [
+  { date: '2026.10.16', tag: 'NEW', text: '画像認識の学習ツールを公開。ぷよモード（色・BE・プラス・NEXT）とそれ以外モード、登録、判定ベクトルのJSON書き出しに対応。' },
+];
+renderUpdateLog('update-log', UPDATE_LOG);
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const HEADS = { color: '色', plus: 'プラス', bonus: 'ボーナス(BE)', next: 'NEXT色', other: 'それ以外' };
+const COLNAME = ['♡', '赤', '青', '緑', '黄', '紫'];
+const COLCSS = ['#f9a8d4', '#e5484d', '#3b82f6', '#22c55e', '#eab308', '#a855f7'];
+const K = 5;
+function msg(t) { $('msg').textContent = t; }
+
+/* ============================ 保存（IndexedDB） ============================ */
+const DB = {
+  samples: [], meta: {}, ok: false, db: null, nextId: 1,
+  async open() {
+    try {
+      this.db = await new Promise((res, rej) => {
+        const q = indexedDB.open('ninnsiki-db', 1);
+        q.onupgradeneeded = () => { const d = q.result; d.createObjectStore('samples', { keyPath: 'id', autoIncrement: true }); d.createObjectStore('meta', { keyPath: 'k' }); };
+        q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error);
+      });
+      this.ok = true;
+      this.samples = await this._all('samples');
+      (await this._all('meta')).forEach(m => this.meta[m.k] = m.v);
+      this.nextId = this.samples.reduce((a, s) => Math.max(a, s.id), 0) + 1;
+    } catch (e) { this.ok = false; console.warn('IndexedDB不可', e); }
+  },
+  _all(store) { return new Promise((res, rej) => { const r = this.db.transaction(store).objectStore(store).getAll(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  async add(recs) {
+    if (this.ok) {
+      const tx = this.db.transaction('samples', 'readwrite'), st = tx.objectStore('samples');
+      recs.forEach(r => { const q = st.add(r); q.onsuccess = () => { r.id = q.result; }; });
+      await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error); });
+    } else recs.forEach(r => r.id = this.nextId++);
+    recs.forEach(r => this.samples.push(r));
+    HC.clear();
+  },
+  async removeWhere(fn) {
+    const del = this.samples.filter(fn); if (!del.length) return 0;
+    if (this.ok) {
+      const tx = this.db.transaction('samples', 'readwrite'), st = tx.objectStore('samples');
+      del.forEach(s => st.delete(s.id));
+      await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+    }
+    const set = new Set(del.map(s => s.id));
+    this.samples = this.samples.filter(s => !set.has(s.id));
+    HC.clear(); return del.length;
+  },
+  async setMeta(k, v) {
+    this.meta[k] = v;
+    if (!this.ok) return;
+    const tx = this.db.transaction('meta', 'readwrite'); tx.objectStore('meta').put({ k, v });
+    await new Promise(res => { tx.oncomplete = res; tx.onerror = res; });
+  },
+};
+const HC = new Map(); // 頭ごとの行列キャッシュ
+
+/* ============================ 特徴量 ============================ */
+const E = { name: 'pixel8', dim: 192, model: null, mobileOk: false };
+const work = document.createElement('canvas'); work.width = work.height = 224;
+const wctx = work.getContext('2d', { willReadFrequently: true });
+const small = document.createElement('canvas'); small.width = small.height = 8;
+const sctx = small.getContext('2d', { willReadFrequently: true });
+function l2(v) { let s = 0; for (let i = 0; i < v.length; i++) s += v[i] * v[i]; s = Math.sqrt(s) || 1; for (let i = 0; i < v.length; i++) v[i] /= s; return v; }
+async function embedRects(src, rects) {
+  const out = [];
+  if (E.name === 'mobilenet' && E.model) {
+    for (let a = 0; a < rects.length; a += 16) {
+      const part = rects.slice(a, a + 16);
+      const ts = part.map(r => { wctx.clearRect(0, 0, 224, 224); wctx.drawImage(src, r.x, r.y, r.w, r.h, 0, 0, 224, 224); return tf.browser.fromPixels(work); });
+      const batch = tf.stack(ts); ts.forEach(t => t.dispose());
+      const e = E.model.infer(batch, true); batch.dispose();
+      const d = await e.data(); const dim = e.shape[1]; e.dispose();
+      for (let i = 0; i < part.length; i++) out.push(l2(Float32Array.from(d.subarray(i * dim, (i + 1) * dim))));
+      await new Promise(r => setTimeout(r));
+    }
+  } else {
+    for (const r of rects) {
+      sctx.clearRect(0, 0, 8, 8); sctx.drawImage(src, r.x, r.y, r.w, r.h, 0, 0, 8, 8);
+      const d = sctx.getImageData(0, 0, 8, 8).data, v = new Float32Array(192); let j = 0;
+      for (let i = 0; i < 64; i++) { v[j++] = d[i * 4] / 255 - .5; v[j++] = d[i * 4 + 1] / 255 - .5; v[j++] = d[i * 4 + 2] / 255 - .5; }
+      out.push(l2(v));
+    }
+  }
+  return out;
+}
+function embName() { return E.name === 'mobilenet' ? 'mobilenet_v1_100' : 'pixel8'; }
+async function loadEmbedder() {
+  const opt = $('embsel').querySelector('[value=mobilenet]'), stat = $('embstat');
+  E.model = null; E.mobileOk = false;
+  if (!window.tf || !window.mobilenet) { opt.textContent = 'MobileNet（読込失敗）'; opt.disabled = true; setEmb('pixel8'); stat.textContent = 'MobileNet未読込→簡易ピクセル'; stat.className = 'badge ng'; return; }
+  stat.textContent = 'MobileNet読込中…'; stat.className = 'badge';
+  try {
+    const url = $('modelurl').value.trim();
+    const opts = { version: 1, alpha: 1.0 }; if (url) opts.modelUrl = url;
+    const m = await Promise.race([mobilenet.load(opts), new Promise((_, rej) => setTimeout(() => rej(new Error('タイムアウト')), 60000))]);
+    E.model = m; E.mobileOk = true; opt.disabled = false; opt.textContent = 'MobileNet v1（推奨）';
+    setEmb('mobilenet'); stat.textContent = 'MobileNet OK（' + (tf.getBackend() || '?') + '）'; stat.className = 'badge ok';
+  } catch (e) {
+    console.warn(e); opt.textContent = 'MobileNet（読込失敗）'; opt.disabled = true; setEmb('pixel8');
+    stat.textContent = 'MobileNet失敗→簡易ピクセル'; stat.className = 'badge ng'; msg('MobileNetを読み込めませんでした（' + e.message + '）。簡易ピクセル特徴で動作します。');
+  }
+}
+function setEmb(n) { E.name = n; E.dim = n === 'mobilenet' ? 1024 : 192; $('embsel').value = n; S.embCache = null; }
+$('embsel').onchange = () => { setEmb($('embsel').value); afterDataChange(); if (S.src) { recognizeAgain(); } };
+$('btn-reload-model').onclick = loadEmbedder;
+
+/* ============================ kNN / 評価 ============================ */
+function headData(head) {
+  const key = head + '|' + embName(); if (HC.has(key)) return HC.get(key);
+  const ss = DB.samples.filter(s => s.head === head && s.embName === embName());
+  if (!ss.length) { HC.set(key, null); return null; }
+  const d = ss[0].emb.length, n = ss.length, M = new Float32Array(n * d);
+  const labels = [], reg = [], classes = [];
+  ss.forEach((s, i) => { M.set(s.emb, i * d); labels.push(s.label); reg.push(s.reg); if (!classes.includes(s.label)) classes.push(s.label); });
+  classes.sort((a, b) => a.localeCompare(b, 'ja'));
+  const H = { head, n, d, M, labels, reg, classes, ci: Int32Array.from(labels.map(l => classes.indexOf(l))) };
+  HC.set(key, H); return H;
+}
+function pushTop(ts, ti, s, j) { if (ts.length < K) { ts.push(s); ti.push(j); } else { let m = 0; for (let q = 1; q < K; q++) if (ts[q] < ts[m]) m = q; if (s > ts[m]) { ts[m] = s; ti[m] = j; } } }
+function vote(ts, ti, ci, C) { const w = new Float64Array(C); let t = 0; for (let q = 0; q < ts.length; q++) { const x = Math.pow(Math.max(0, ts[q]), 4) + 1e-9; w[ci[ti[q]]] += x; t += x; } let b = 0; for (let c = 1; c < C; c++) if (w[c] > w[b]) b = c; return [b, w[b] / t]; }
+function predict(head, vec) {
+  const H = headData(head); if (!H || H.classes.length < 2) return null;
+  const { n, d, M } = H, ts = [], ti = [];
+  for (let i = 0; i < n; i++) { let s = 0, o = i * d; for (let j = 0; j < d; j++) s += M[o + j] * vec[j]; pushTop(ts, ti, s, i); }
+  const [b, conf] = vote(ts, ti, H.ci, H.classes.length);
+  return { label: H.classes[b], conf };
+}
+async function evalHead(H) {
+  const { n, d, M, ci, reg } = H, C = H.classes.length;
+  const res = { n, classes: H.classes, knn: null, knnG: null, cent: null, perClass: H.classes.map(l => ({ label: l, n: 0, ok: 0, cn: 0, cok: 0 })), centroids: [] };
+  H.ci.forEach(c => res.perClass[c].n++);
+  // 代表ベクトル
+  const sums = H.classes.map(() => new Float64Array(d));
+  for (let i = 0; i < n; i++) { const s = sums[ci[i]]; for (let j = 0; j < d; j++) s[j] += M[i * d + j]; }
+  const snorm = sums.map(s => Math.sqrt(s.reduce((a, x) => a + x * x, 0)) || 1);
+  res.centroids = sums.map((s, c) => Float32Array.from(s, x => x / snorm[c]));
+  if (C < 2 || n < 3) return res;
+  let okA = 0, totA = 0, okB = 0, totB = 0, okC = 0, totC = 0;
+  const big = !!(window.tf && E.name === 'mobilenet' && E.model && n * n * d > 4e7);
+  const Mt = big ? tf.tensor2d(M, [n, d]) : null;
+  const CH = 128, cap = big ? 2500 : 700, step = Math.max(1, Math.ceil(n / cap)), qs = [];
+  for (let i = 0; i < n; i += step) qs.push(i);
+  for (let a0 = 0; a0 < qs.length; a0 += CH) {
+    const part = qs.slice(a0, a0 + CH); let S;
+    if (big) { const Q = new Float32Array(part.length * d); part.forEach((i, k) => Q.set(M.subarray(i * d, (i + 1) * d), k * d)); const qt = tf.tensor2d(Q, [part.length, d]), q = tf.matMul(qt, Mt, false, true); S = await q.data(); q.dispose(); qt.dispose(); }
+    for (let pi = 0; pi < part.length; pi++) {
+      const i = part[pi], tA = [], iA = [], tB = [], iB = [];
+      for (let j = 0; j < n; j++) {
+        if (j === i) continue;
+        let s;
+        if (big) s = S[pi * n + j]; else { s = 0; const a = i * d, b = j * d; for (let q = 0; q < d; q++) s += M[a + q] * M[b + q]; }
+        pushTop(tA, iA, s, j); if (reg[j] !== reg[i]) pushTop(tB, iB, s, j);
+      }
+      const c = ci[i];
+      if (tA.length) { totA++; const [b] = vote(tA, iA, ci, C); if (b === c) { okA++; res.perClass[c].ok++; } res.perClass[c].kn = (res.perClass[c].kn || 0) + 1; }
+      if (tB.length) { totB++; const [b] = vote(tB, iB, ci, C); if (b === c) okB++; }
+      if (res.perClass[c].n > 1) {
+        let best = -2, bc = -1;
+        for (let k = 0; k < C; k++) {
+          let dot = 0; const sk = sums[k]; for (let q = 0; q < d; q++) dot += M[i * d + q] * sk[q];
+          let sim; if (k === c) { const nn = Math.sqrt(Math.max(1e-9, snorm[k] * snorm[k] - 2 * dot + 1)); sim = (dot - 1) / nn; } else sim = dot / snorm[k];
+          if (sim > best) { best = sim; bc = k; }
+        }
+        totC++; res.perClass[c].cn++; if (bc === c) { okC++; res.perClass[c].cok++; }
+      }
+    }
+    await new Promise(r => setTimeout(r));
+  }
+  if (Mt) Mt.dispose();
+  res.knn = totA ? { acc: okA / totA, n: totA } : null;
+  res.knnG = totB ? { acc: okB / totB, n: totB } : null;
+  res.cent = totC ? { acc: okC / totC, n: totC } : null;
+  return res;
+}
+
+/* ============================ 画像・共通状態 ============================ */
+const S = { mode: 'puyo', src: null, data: null, W: 0, H: 0, board: null, rects: null, embCache: null,
+  color: null, plus: null, bonus: null, next: null, conf: {}, pred: null, tool: 'c1', manual: false, items: [], drag: null, evalRes: {}, busy: false, lastReg: null };
+const prev = $('prev'), pctx = prev.getContext('2d');
+let REGSEQ = Date.now();
+
+function loadFile(f) {
+  if (!f || !f.type.startsWith('image/')) return;
+  const rd = new FileReader();
+  rd.onload = ev => { const im = new Image(); im.onload = () => setImage(im); im.src = ev.target.result; };
+  rd.readAsDataURL(f);
+}
+$('file').onchange = e => { if (e.target.files[0]) loadFile(e.target.files[0]); e.target.value = ''; };
+window.addEventListener('paste', e => { const it = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/')); if (it) loadFile(it.getAsFile()); });
+['dragover', 'drop'].forEach(t => document.addEventListener(t, e => { e.preventDefault(); if (t === 'drop' && e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); }));
+
+async function setImage(im) {
+  const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+  const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(im, 0, 0);
+  S.src = c; S.W = c.width; S.H = c.height; S.data = x.getImageData(0, 0, S.W, S.H).data; S.embCache = null; S.board = null;
+  prev.hidden = false;
+  if (S.mode === 'puyo') { S.manual = false; await autoBoardAndRecognize(); }
+  else { S.items = []; renderItems(); drawPreview(); msg('画像の上をドラッグして切り取ってください。'); }
+}
+function drawPreview() {
+  if (!S.src) return;
+  const maxW = Math.min(900, document.body.clientWidth - 40), sc = Math.min(1, maxW / S.W);
+  prev.width = Math.round(S.W * sc); prev.height = Math.round(S.H * sc); prev.dataset.sc = sc;
+  pctx.drawImage(S.src, 0, 0, prev.width, prev.height);
+  const g = sc;
+  if (S.mode === 'puyo' && S.board) {
+    const B = S.board; pctx.strokeStyle = '#15aabf'; pctx.lineWidth = 2; pctx.strokeRect(B.x * g, B.y * g, B.w * g, B.h * g);
+    pctx.lineWidth = 1; pctx.strokeStyle = 'rgba(21,170,191,.6)';
+    for (let c = 1; c < 8; c++) { pctx.beginPath(); pctx.moveTo((B.x + B.w * c / 8) * g, B.y * g); pctx.lineTo((B.x + B.w * c / 8) * g, (B.y + B.h) * g); pctx.stroke(); }
+    for (let r = 0; r <= 6; r++) { const y = B.y + B.h * (r === 0 ? 1 : 1 + 2 * r) / 13; pctx.beginPath(); pctx.moveTo(B.x * g, y * g); pctx.lineTo((B.x + B.w) * g, y * g); pctx.stroke(); }
+  }
+  if (S.mode === 'other') S.items.forEach((it, i) => { pctx.strokeStyle = '#f08c00'; pctx.lineWidth = 2; pctx.strokeRect(it.rect.x * g, it.rect.y * g, it.rect.w * g, it.rect.h * g); pctx.fillStyle = '#f08c00'; pctx.font = 'bold 14px sans-serif'; pctx.fillText(String(i + 1), it.rect.x * g + 3, it.rect.y * g + 14); });
+  if (S.drag) { const d = S.drag; pctx.setLineDash([5, 4]); pctx.strokeStyle = '#fff'; pctx.lineWidth = 2; pctx.strokeRect(Math.min(d.x0, d.x1) * g, Math.min(d.y0, d.y1) * g, Math.abs(d.x1 - d.x0) * g, Math.abs(d.y1 - d.y0) * g); pctx.setLineDash([]); }
+  prev.classList.toggle('draw', S.mode === 'other' || S.manual);
+}
+function evPos(e) { const r = prev.getBoundingClientRect(), sc = S.W / r.width; return { x: Math.max(0, Math.min(S.W, (e.clientX - r.left) * sc)), y: Math.max(0, Math.min(S.H, (e.clientY - r.top) * sc)) }; }
+prev.addEventListener('pointerdown', e => { if (!(S.mode === 'other' || S.manual) || !S.src) return; const p = evPos(e); S.drag = { x0: p.x, y0: p.y, x1: p.x, y1: p.y }; prev.setPointerCapture(e.pointerId); e.preventDefault(); });
+prev.addEventListener('pointermove', e => { if (!S.drag) return; const p = evPos(e); S.drag.x1 = p.x; S.drag.y1 = p.y; drawPreview(); });
+prev.addEventListener('pointerup', async e => {
+  if (!S.drag) return; const d = S.drag; S.drag = null;
+  const r = { x: Math.min(d.x0, d.x1), y: Math.min(d.y0, d.y1), w: Math.abs(d.x1 - d.x0), h: Math.abs(d.y1 - d.y0) };
+  if (r.w < 6 || r.h < 6) { drawPreview(); return; }
+  r.x = Math.round(r.x); r.y = Math.round(r.y); r.w = Math.round(r.w); r.h = Math.round(r.h);
+  if (S.mode === 'puyo') { S.board = r; S.lastBoard = { W: S.W, H: S.H, rect: Object.assign({}, r) }; S.manual = false; $('btn-manual').classList.remove('p'); S.embCache = null; await recognize(); }
+  else await addItem(r);
+});
+
+/* ============================ ぷよモード: 盤面検出と従来判定（puyodamageと同じ） ============================ */
+function detectBoard(data, width, height) {
+  const rowC = [];
+  for (let y = 0; y < height; y++) { const u = new Set(); for (let x = 0; x < width; x++) { const i = (y * width + x) * 4; u.add((data[i] << 16) | (data[i + 1] << 8) | data[i + 2]); } rowC.push(u.size); }
+  let topCutY = 0, bottomCutY = height, found = false, lowRows = 0;
+  const scanStartY = Math.floor(height * 0.5), limitY = Math.floor(height * 0.8);
+  for (let y = scanStartY; y < height; y++) {
+    if (!found) { if (rowC[y] <= 40) { lowRows++; if (lowRows >= 3) found = true; } else lowRows = 0; }
+    else if (topCutY === 0) { if (rowC[y] >= 70) topCutY = y; }
+    if (y >= limitY && rowC[y] <= 40) { bottomCutY = y; break; }
+  }
+  const fh = bottomCutY - topCutY;
+  const aTop = Math.floor(topCutY + fh * 0.25), aBottom = Math.floor(bottomCutY - fh * 0.25);
+  const colC = [];
+  for (let x = 0; x < width; x++) { const u = new Set(); for (let y = aTop; y < aBottom; y++) { const i = (y * width + x) * 4; u.add((data[i] << 16) | (data[i + 1] << 8) | data[i + 2]); } colC.push(u.size); }
+  let leftX = 0, fGap = false, lLow = 0;
+  for (let x = 0; x < width; x++) { if (!fGap) { if (colC[x] <= 10) { lLow++; if (lLow >= 3) fGap = true; } else lLow = 0; } else if (colC[x] >= 40) { leftX = x; break; } }
+  let rightX = width, rLow = 0;
+  for (let x = Math.floor(width * 0.7); x < width; x++) { if (colC[x] <= 10) { rLow++; if (rLow >= 3) { rightX = x - 1; break; } } else rLow = 0; }
+  const fw = rightX - leftX;
+  if (fw <= 0 || fh <= 0 || topCutY === 0) return null;
+  return { x: leftX, y: topCutY, w: fw, h: fh };
+}
+function cellRects(B) {
+  const uH = B.h / 13, uW = B.w / 8, out = []; let curY = 0;
+  for (let row = 0; row < 7; row++) {
+    const rh = (row === 0 ? 1 : 2) * uH, line = [];
+    for (let col = 0; col < 8; col++) {
+      const cell = { x: B.x + col * uW, y: B.y + curY, w: uW, h: rh };
+      const core = row === 0 ? cell : { x: cell.x + uW * .25, y: cell.y + rh * .25, w: uW * .5, h: rh * .5 };
+      line.push({ cell, core });
+    }
+    out.push(line); curY += rh;
+  }
+  return out;
+}
+function ruleCells(data, width, height, B) {
+  const PAL = { "1": { r: 210, g: 50, b: 50 }, "2": { r: 50, g: 100, b: 210 }, "3": { r: 50, g: 160, b: 50 }, "4": { r: 220, g: 200, b: 50 }, "5": { r: 150, g: 50, b: 180 } };
+  const yR = [1, 2, 2, 2, 2, 2, 2], uH = B.h / 13, uW = B.w / 8, leftX = B.x, topCutY = B.y;
+  let curY = 0; const color = new Array(48).fill(0), plus = new Array(48).fill(0), bonus = new Array(48).fill(0), next = [];
+  for (let row = 0; row < 7; row++) {
+    const rowHeight = yR[row] * uH;
+    for (let col = 0; col < 8; col++) {
+      let sX, eX, sY, eY;
+      const cellLeft = leftX + col * uW, cellRight = leftX + (col + 1) * uW, cellTop = topCutY + curY, cellBottom = topCutY + curY + rowHeight;
+      if (row === 0) { sX = cellLeft + uW * 0.33; eX = cellLeft + uW * 0.48; sY = cellTop + rowHeight * 0.33; eY = cellTop + rowHeight * 0.55; }
+      else { sX = cellLeft + uW * 0.25; eX = cellLeft + uW * 0.75; sY = cellTop + rowHeight * 0.25; eY = cellTop + rowHeight * 0.75; }
+      if (row >= 1) {
+        let sr = 0, sg = 0, cnt = 0; const off = 4;
+        [[cellLeft + off, cellTop + off], [cellRight - off, cellTop + off], [cellLeft + off, cellBottom - off], [cellRight - off, cellBottom - off]].forEach(([x, y]) => {
+          const px = Math.floor(x), py = Math.floor(y);
+          if (px >= 0 && px < width && py >= 0 && py < height) { const idx = (py * width + px) * 4; sr += data[idx]; sg += data[idx + 1]; cnt++; }
+        });
+        if (cnt > 0 && sr / cnt >= 200 && sg / cnt >= 195) bonus[(row - 1) * 8 + col] = 1;
+      }
+      let sumR = 0, sumG = 0, sumB = 0, count = 0;
+      for (let py = Math.floor(sY); py < Math.floor(eY); py++) for (let px = Math.floor(sX); px < Math.floor(eX); px++) {
+        if (px < 0 || py < 0 || px >= width || py >= height) continue;
+        const i = (py * width + px) * 4, r = data[i], g = data[i + 1], b = data[i + 2];
+        if (r > 240 && g > 240 && b > 240) continue;
+        sumR += r; sumG += g; sumB += b; count++;
+      }
+      const mxp = Math.min(width - 1, Math.max(0, Math.floor((sX + eX) / 2))), myp = Math.min(height - 1, Math.max(0, Math.floor((sY + eY) / 2))), mi = (myp * width + mxp) * 4;
+      if (count === 0) { sumR = data[mi]; sumG = data[mi + 1]; sumB = data[mi + 2]; count = 1; }
+      const avg = { r: sumR / count, g: sumG / count, b: sumB / count };
+      const rawAll = [], pixels = [];
+      for (let py = Math.floor(sY); py < Math.floor(eY); py++) for (let px = Math.floor(sX); px < Math.floor(eX); px++) {
+        if (px < 0 || py < 0 || px >= width || py >= height) continue;
+        const i = (py * width + px) * 4, r = data[i], g = data[i + 1], b = data[i + 2];
+        rawAll.push({ r, g, b }); if (r > 240 && g > 240 && b > 240) continue; pixels.push({ r, g, b });
+      }
+      if (!pixels.length) pixels.push({ r: data[mi], g: data[mi + 1], b: data[mi + 2] });
+      if (!rawAll.length) rawAll.push({ r: data[mi], g: data[mi + 1], b: data[mi + 2] });
+      const top5 = (arr, key, asc) => { const s = [...arr].sort((a, b) => asc ? a[key] - b[key] : b[key] - a[key]).slice(0, Math.min(5, arr.length)); const t = s.reduce((a, p) => ({ r: a.r + p.r, g: a.g + p.g, b: a.b + p.b }), { r: 0, g: 0, b: 0 }); return { r: t.r / s.length, g: t.g / s.length, b: t.b / s.length }; };
+      let id = "0";
+      if (row === 0) {
+        let best = Infinity; for (const k in PAL) { const t = PAL[k], d = Math.hypot(avg.r - t.r, avg.g - t.g, avg.b - t.b); if (d < best) { best = d; id = k; } }
+        next.push(parseInt(id));
+      } else {
+        const bMax5 = top5(pixels, 'b', false), bMin5 = top5(pixels, 'b', true), gMin5 = top5(pixels, 'g', true);
+        const isHeart = avg.b >= 200 && avg.r >= 220 && bMax5.g <= 225 && bMin5.r <= 227 && bMin5.b >= 124 && gMin5.b <= 200 && gMin5.r >= 173;
+        const condRed = (avg.r * 1.44 - avg.b - 138) > 0, condYellowB = (bMin5.g * 1.25 - bMin5.b - 125) > 0, condGreen = (avg.g * 5 - avg.b * 6 + 70) > 0;
+        const yRatio = rawAll.filter(p => p.r > 235 && p.g > 145 && p.b < 50).length / rawAll.length, isYellow = condYellowB || yRatio >= 0.05;
+        if (isHeart) id = "0"; else if (condRed && isYellow) id = "4"; else if (condRed) id = "1"; else if (condGreen) id = "3"; else id = (avg.g < avg.r) ? "5" : "2";
+        const plusRatio = rawAll.filter(p => p.r > 235 && p.g > 205 && p.b < 170).length / rawAll.length, idx = (row - 1) * 8 + col;
+        color[idx] = parseInt(id);
+        plus[idx] = (id === "4") ? (plusRatio >= 0.25 ? 1 : 0) : (id !== "0" ? (plusRatio > 0.01 ? 1 : 0) : 0);
+      }
+    }
+    curY += rowHeight;
+  }
+  return { color, plus, bonus, next };
+}
+
+/* ============================ ぷよモード: 認識 ============================ */
+async function autoBoardAndRecognize() {
+  let B = detectBoard(S.data, S.W, S.H), reused = false;
+  if (!B && S.lastBoard && S.lastBoard.W === S.W && S.lastBoard.H === S.H) { B = Object.assign({}, S.lastBoard.rect); reused = true; }
+  if (!B) { S.board = { x: 0, y: 0, w: S.W, h: S.H }; S.manual = true; $('btn-manual').classList.add('p'); drawPreview(); msg('盤面を自動で見つけられませんでした。「盤面の範囲を手動で指定」状態にしたので、画像上をドラッグして範囲を囲んでください。'); buildGrid(); return; }
+  S.board = B; await recognize();
+  if (reused) msg('自動検出できなかったため、前回指定した盤面の範囲を使いました。ずれていたら「盤面の範囲を手動で指定」で直してください。\n' + $('msg').textContent);
+}
+async function ensureEmb() {
+  const key = embName() + '|' + JSON.stringify(S.board);
+  if (S.embCache && S.embCache.key === key) return S.embCache;
+  const R = cellRects(S.board), list = [];
+  for (let c = 0; c < 8; c++) list.push(R[0][c].cell);
+  for (let i = 0; i < 48; i++) list.push(R[1 + (i >> 3)][i & 7].cell);
+  for (let i = 0; i < 48; i++) list.push(R[1 + (i >> 3)][i & 7].core);
+  const rects = list.map(r => ({ x: r.x, y: r.y, w: Math.max(2, r.w), h: Math.max(2, r.h) }));
+  const e = await embedRects(S.src, rects);
+  S.embCache = { key, next: e.slice(0, 8), full: e.slice(8, 56), core: e.slice(56, 104) };
+  return S.embCache;
+}
+function lockedOf(h) { return $('lock').checked && document.querySelector(`.lk[data-h=${h}]`).checked && S[h] != null; }
+async function recognize() {
+  if (S.busy) return; S.busy = true;
+  try {
+    const B = S.board, method = $('method').value;
+    S.rects = cellRects(B);
+    const rule = ruleCells(S.data, S.W, S.H, B);
+    const notes = [], pred = {}, nw = { color: null, plus: null, bonus: null, next: null }; S.conf = {};
+    let emb = null;
+    if (method === 'learn') { msg('学習判定中…'); emb = await ensureEmb(); }
+    const learnHead = (h, vecs) => {
+      const out = [], conf = [];
+      for (const v of vecs) { const p = predict(h === 'next' ? 'next' : h, v); if (!p) return null; out.push(parseInt(p.label)); conf.push(p.conf); }
+      return { out, conf };
+    };
+    const val = {};
+    for (const h of ['color', 'bonus', 'plus', 'next']) {
+      if (lockedOf(h)) { nw[h] = S[h].slice(); notes.push(HEADS[h] + ':固定'); continue; }
+      let L = null;
+      if (method === 'learn') {
+        const vecs = h === 'next' ? emb.next : h === 'color' ? emb.core : h === 'plus' ? emb.core : emb.full;
+        L = learnHead(h, vecs);
+        if (!L) notes.push(HEADS[h] + ':学習データ不足→従来ルール');
+      }
+      if (L) { nw[h] = L.out; S.conf[h] = L.conf; }
+      else nw[h] = rule[h].slice();
+      pred[h] = nw[h].slice();
+    }
+    // 色がハートならプラスなし
+    if (nw.color && nw.plus) for (let i = 0; i < 48; i++) if (nw.color[i] === 0) nw.plus[i] = 0;
+    S.color = nw.color; S.plus = nw.plus; S.bonus = nw.bonus; S.next = nw.next;
+    S.pred = Object.keys(pred).length ? pred : null;
+    buildGrid();
+    drawPreview();
+    msg((method === 'learn' ? '学習判定' : '従来ルールで判定') + 'しました。' + (notes.length ? '（' + notes.join('、') + '）' : '') + '\n間違いは下の盤面で修正して「登録する」を押してください。');
+  } catch (e) { console.error(e); msg('エラー: ' + e.message); }
+  finally { S.busy = false; }
+}
+function recognizeAgain() { if (S.mode === 'puyo' && S.board) recognize(); }
+$('method').onchange = () => { if (S.mode === 'puyo') recognizeAgain(); else reLabelItems(); };
+$('btn-manual').onclick = () => { if (!S.src) return; S.manual = !S.manual; $('btn-manual').classList.toggle('p', S.manual); if (S.manual) msg('画像上をドラッグして盤面（NEXT段〜盤面下端）を囲んでください。'); drawPreview(); };
+
+/* ---- 盤面表示・修正 ---- */
+const cellEls = { next: [], board: [] };
+function mkCell(canvasRect, isNext) {
+  const d = document.createElement('div'); d.className = 'pc' + (isNext ? ' nx' : '');
+  const c = document.createElement('canvas'); const w = 48; c.width = w; c.height = Math.max(8, Math.round(w * canvasRect.h / canvasRect.w));
+  if (S.src) c.getContext('2d').drawImage(S.src, canvasRect.x, canvasRect.y, canvasRect.w, canvasRect.h, 0, 0, c.width, c.height);
+  d.appendChild(c);
+  const dot = document.createElement('div'); dot.className = 'dot'; d.appendChild(dot);
+  const pl = document.createElement('div'); pl.className = 'pl'; d.appendChild(pl);
+  return d;
+}
+function buildGrid() {
+  const gn = $('grid-next'), gb = $('grid'); gn.innerHTML = gb.innerHTML = ''; cellEls.next = []; cellEls.board = [];
+  if (!S.board || !S.rects) return;
+  for (let c = 0; c < 8; c++) { const el = mkCell(S.rects[0][c].cell, true); el.dataset.k = 'n' + c; gn.appendChild(el); cellEls.next.push(el); }
+  for (let i = 0; i < 48; i++) { const el = mkCell(S.rects[1 + (i >> 3)][i & 7].cell, false); el.dataset.k = 'b' + i; gb.appendChild(el); cellEls.board.push(el); }
+  refreshCells();
+}
+function refreshCells() {
+  for (let c = 0; c < 8; c++) { const el = cellEls.next[c]; if (!el) continue; const v = S.next ? S.next[c] : null; setDot(el, v, false); el.classList.toggle('low', !!(S.conf.next && S.conf.next[c] < .6)); }
+  for (let i = 0; i < 48; i++) {
+    const el = cellEls.board[i]; if (!el || !S.color) continue;
+    setDot(el, S.color[i], S.plus && S.plus[i] === 1); el.classList.toggle('bo', !!(S.bonus && S.bonus[i] === 1));
+    el.classList.toggle('low', !!((S.conf.color && S.conf.color[i] < .6) || (S.conf.bonus && S.conf.bonus[i] < .6) || (S.conf.plus && S.conf.plus[i] < .6)));
+  }
+  updateText();
+}
+function setDot(el, v, plus) {
+  const d = el.querySelector('.dot'), p = el.querySelector('.pl');
+  if (v == null) { d.style.display = 'none'; p.textContent = ''; return; }
+  d.style.display = ''; d.className = 'dot c' + v; d.textContent = v === 0 ? '♡' : ''; p.textContent = plus ? '+' : '';
+}
+function updateText() {
+  if (!S.color) { $('txt').value = ''; return; }
+  const L = [];
+  for (let r = 0; r < 6; r++) L.push(S.color.slice(r * 8, r * 8 + 8).join(''));
+  for (let r = 0; r < 6; r++) L.push(S.plus.slice(r * 8, r * 8 + 8).join(''));
+  for (let r = 0; r < 6; r++) L.push(S.bonus.slice(r * 8, r * 8 + 8).join(''));
+  L.push(S.next.join('')); $('txt').value = L.join('\n');
+}
+$('btn-copytxt').onclick = () => { $('txt').select(); try { navigator.clipboard.writeText($('txt').value); } catch (e) { document.execCommand('copy'); } };
+
+const TOOLS = [['c1', '赤', 1], ['c2', '青', 2], ['c3', '緑', 3], ['c4', '黄', 4], ['c5', '紫', 5], ['c0', '♡', 0], ['be', 'BE', null], ['pl', 'プラス', null]];
+TOOLS.forEach(([k, n, c]) => { const b = document.createElement('button'); b.dataset.t = k; b.innerHTML = (c != null ? `<span class="sw" style="background:${COLCSS[c]}"></span>` : '') + n; b.onclick = () => setTool(k); $('tools').appendChild(b); });
+function setTool(k) { S.tool = k; [...$('tools').children].forEach(b => b.classList.toggle('on', b.dataset.t === k)); }
+setTool('c1');
+function applyTool(el, mode) {
+  const k = el.dataset.k; if (!k || !S.color) return;
+  const isN = k[0] === 'n', i = parseInt(k.slice(1)), t = S.tool;
+  if (t[0] === 'c') {
+    const c = parseInt(t[1]); if (isN) { if (c === 0) return; S.next[i] = c; } else { S.color[i] = c; if (c === 0) S.plus[i] = 0; }
+  } else if (!isN && t === 'be') { if (mode.v == null) mode.v = S.bonus[i] ? 0 : 1; S.bonus[i] = mode.v; }
+  else if (!isN && t === 'pl') { if (S.color[i] === 0) return; if (mode.v == null) mode.v = S.plus[i] ? 0 : 1; S.plus[i] = mode.v; }
+  refreshCells();
+}
+let painting = null;
+document.addEventListener('pointerdown', e => { const el = e.target.closest('.pc'); if (!el || !(el.parentNode.id === 'grid' || el.parentNode.id === 'grid-next')) return; painting = { v: null }; applyTool(el, painting); e.preventDefault(); });
+document.addEventListener('pointermove', e => { if (!painting) return; const el = document.elementFromPoint(e.clientX, e.clientY)?.closest('.pc'); if (el && (el.parentNode.id === 'grid' || el.parentNode.id === 'grid-next')) applyTool(el, painting); });
+['pointerup', 'pointercancel'].forEach(t => document.addEventListener(t, () => { painting = null; }));
+$('lock').onchange = () => { msg($('lock').checked ? '判定を固定します。次に画像を入れても、固定した項目の判定は変わりません（切り取り画像だけ入れ替わります）。' : '固定を解除しました。'); };
+
+/* ============================ 登録 ============================ */
+async function registerPuyo() {
+  if (!S.color || !S.board) { msg('先に画像を読み込んでください。'); return; }
+  if (S.busy) return; S.busy = true; $('btn-reg').disabled = true;
+  try {
+    msg('登録中…'); const emb = await ensureEmb(), reg = ++REGSEQ, en = embName(), recs = [];
+    const add = (head, label, v) => recs.push({ head, label: String(label), reg, embName: en, emb: v });
+    for (let c = 0; c < 8; c++) add('next', S.next[c], emb.next[c]);
+    for (let i = 0; i < 48; i++) {
+      add('color', S.color[i], emb.core[i]); add('bonus', S.bonus[i], emb.full[i]);
+      if (S.color[i] !== 0) add('plus', S.plus[i], emb.core[i]);
+    }
+    await DB.add(recs);
+    const h = { t: Date.now(), reg, mode: 'puyo', method: $('method').value, emb: en, r: {} };
+    if (S.pred) {
+      const cmp = (head, a, b, skip) => { let ok = 0, n = 0; for (let i = 0; i < a.length; i++) { if (skip && skip(i)) continue; n++; if (a[i] === b[i]) ok++; } return [ok, n]; };
+      if (S.pred.color) h.r.color = cmp('color', S.pred.color, S.color);
+      if (S.pred.bonus) h.r.bonus = cmp('bonus', S.pred.bonus, S.bonus);
+      if (S.pred.plus) h.r.plus = cmp('plus', S.pred.plus, S.plus, i => S.color[i] === 0);
+      if (S.pred.next) h.r.next = cmp('next', S.pred.next, S.next);
+    }
+    await pushHist(h);
+    S.lastReg = reg; S.pred = null; // 同じ画面を二重に数えない
+    $('reg-note').textContent = `登録しました（+${recs.length}件）`;
+    msg(`登録しました（+${recs.length}件）。同じ盤面を別の画像で入れるときは「判定を固定して読み込む」をONにしてください。`);
+    await afterDataChange();
+  } catch (e) { console.error(e); msg('登録エラー: ' + e.message); }
+  finally { S.busy = false; $('btn-reg').disabled = false; }
+}
+$('btn-reg').onclick = registerPuyo;
+async function pushHist(h) { const a = (DB.meta.hist || []).concat([h]).slice(-300); await DB.setMeta('hist', a); }
+async function undoLast() {
+  const regs = DB.samples.map(s => s.reg); if (!regs.length) { msg('取り消せる登録がありません。'); return; }
+  const last = Math.max(...regs); const n = await DB.removeWhere(s => s.reg === last);
+  await DB.setMeta('hist', (DB.meta.hist || []).filter(h => h.reg !== last));
+  msg(`直前の登録を取り消しました（${n}件）。`); await afterDataChange();
+}
+$('btn-undo').onclick = $('btn-undo2').onclick = undoLast;
+
+/* ============================ それ以外モード ============================ */
+async function addItem(r) {
+  let label = '';
+  if ($('sameLabel').checked && S.items.length) label = S.items[S.items.length - 1].label;
+  const t = { rect: r, label, pred: null, auto: false };
+  S.items.push(t); renderItems(); drawPreview();
+  await predictItem(t);
+}
+async function predictItem(t) {
+  try {
+    const [v] = await embedRects(S.src, [t.rect]); t.vec = v; t.vecName = embName();
+    const p = predict('other', v); t.pred = p;
+    if (p && !t.label) { t.label = p.label; t.auto = true; }
+    renderItems();
+  } catch (e) { console.error(e); }
+}
+async function reLabelItems() { for (const t of S.items) if (!t.label || t.auto) { t.label = ''; await predictItem(t); } }
+function renderItems() {
+  const box = $('items'); box.innerHTML = '';
+  S.items.forEach((t, i) => {
+    const d = document.createElement('div'); d.className = 'it';
+    const c = document.createElement('canvas'); c.width = 64; c.height = 64; const x = c.getContext('2d'); const sc = Math.min(64 / t.rect.w, 64 / t.rect.h);
+    x.drawImage(S.src, t.rect.x, t.rect.y, t.rect.w, t.rect.h, (64 - t.rect.w * sc) / 2, (64 - t.rect.h * sc) / 2, t.rect.w * sc, t.rect.h * sc);
+    const no = document.createElement('b'); no.textContent = '#' + (i + 1);
+    const inp = document.createElement('input'); inp.type = 'text'; inp.setAttribute('list', 'classlist'); inp.placeholder = '名前（新規も可）'; inp.value = t.label;
+    inp.oninput = () => { t.label = inp.value.trim(); t.auto = false; };
+    const pr = document.createElement('span'); pr.className = 'pr'; pr.textContent = t.pred ? `予測: ${t.pred.label}（${Math.round(t.pred.conf * 100)}%）` : (headData('other') ? '' : '学習データなし');
+    const del = document.createElement('button'); del.textContent = '削除'; del.onclick = () => { S.items.splice(i, 1); renderItems(); drawPreview(); };
+    d.append(c, no, inp, pr, del); box.appendChild(d);
+  });
+  refreshClassList();
+}
+function refreshClassList() {
+  const names = new Set(DB.samples.filter(s => s.head === 'other').map(s => s.label)); (DB.meta.otherClasses || []).forEach(n => names.add(n));
+  $('classlist').innerHTML = [...names].sort((a, b) => a.localeCompare(b, 'ja')).map(n => `<option value="${n.replace(/"/g, '&quot;')}">`).join('');
+}
+$('btn-clear-rects').onclick = () => { S.items = []; renderItems(); drawPreview(); };
+async function registerOther() {
+  const its = S.items.filter(t => t.label); if (!its.length) { msg('名前を入れた切り取りがありません。'); return; }
+  if (S.busy) return; S.busy = true;
+  try {
+    const reg = ++REGSEQ, recs = [], en = embName();
+    for (const t of its) {
+      if (!t.vec || t.vecName !== en) { const [v] = await embedRects(S.src, [t.rect]); t.vec = v; t.vecName = en; }
+      recs.push({ head: 'other', label: t.label, reg, embName: en, emb: t.vec });
+    }
+    await DB.add(recs);
+    const names = new Set(DB.meta.otherClasses || []); its.forEach(t => names.add(t.label)); await DB.setMeta('otherClasses', [...names]);
+    const h = { t: Date.now(), reg, mode: 'other', method: 'learn', emb: en, r: {} };
+    const withPred = its.filter(t => t.pred); if (withPred.length) h.r.other = [withPred.filter(t => t.pred.label === t.label).length, withPred.length];
+    await pushHist(h);
+    S.items = []; renderItems(); drawPreview(); msg(`登録しました（+${recs.length}件）。`); await afterDataChange();
+  } catch (e) { console.error(e); msg('登録エラー: ' + e.message); }
+  finally { S.busy = false; }
+}
+$('btn-reg2').onclick = registerOther;
+
+/* ============================ 表示: 判定ベクトル・正答率・履歴 ============================ */
+function heat(vec) {
+  const d = vec.length, cols = 32, rows = Math.ceil(d / cols), c = document.createElement('canvas'); c.width = cols; c.height = rows; c.className = 'hm';
+  const x = c.getContext('2d'), im = x.createImageData(cols, rows); let m = 0; for (const v of vec) m = Math.max(m, Math.abs(v)) || m;
+  for (let i = 0; i < cols * rows; i++) { const v = i < d ? vec[i] / (m || 1) : 0, o = i * 4; if (v >= 0) { im.data[o] = 255; im.data[o + 1] = im.data[o + 2] = 255 - v * 200; } else { im.data[o + 2] = 255; im.data[o] = im.data[o + 1] = 255 + v * 200; } im.data[o + 3] = 255; }
+  x.putImageData(im, 0, 0); return c;
+}
+const pct = o => o ? (o.acc * 100).toFixed(1) + '%<span class="mut">(' + o.n + ')</span>' : '—';
+let statSeq = 0;
+async function refreshStats() {
+  const my = ++statSeq, box = $('stats'); S.evalRes = {};
+  const heads = ['color', 'bonus', 'plus', 'next', 'other'].filter(h => headData(h));
+  if (!heads.length) { box.textContent = '（まだデータがありません）'; $('exp-info').textContent = ''; return; }
+  box.textContent = '計算中…';
+  const frag = document.createElement('div');
+  for (const h of heads) {
+    const H = headData(h), r = await evalHead(H); if (my !== statSeq) return; S.evalRes[h] = r;
+    const sec = document.createElement('div'); sec.style.marginBottom = '10px';
+    sec.innerHTML = `<b>${HEADS[h]}</b>　サンプル ${r.n}件／クラス ${r.classes.length}` +
+      `<table><tr><th>方式</th><th>正答率（評価数）</th></tr>` +
+      `<tr><td>kNN・1個除外</td><td>${pct(r.knn)}</td></tr><tr><td>kNN・同じ登録を除外</td><td>${pct(r.knnG)}</td></tr><tr><td>代表ベクトル（軽量JSON）</td><td>${pct(r.cent)}</td></tr></table>`;
+    const t = document.createElement('table'); t.innerHTML = '<tr><th>クラス</th><th>件数</th><th>kNN</th><th>代表</th><th>ベクトル(ヒートマップ)</th></tr>';
+    r.perClass.forEach((p, i) => {
+      const tr = document.createElement('tr'), lab = h === 'color' || h === 'next' ? (COLNAME[+p.label] ?? p.label) + `(${p.label})` : (h === 'bonus' || h === 'plus') ? (p.label === '1' ? 'あり(1)' : 'なし(0)') : p.label;
+      tr.innerHTML = `<td>${lab}</td><td class="n">${p.n}</td><td class="n">${p.kn ? (p.ok / p.kn * 100).toFixed(0) + '%' : '—'}</td><td class="n">${p.cn ? (p.cok / p.cn * 100).toFixed(0) + '%' : '—'}</td><td></td>`;
+      const cv = heat(r.centroids[i]); cv.title = '先頭8次元: ' + Array.from(r.centroids[i].slice(0, 8)).map(v => v.toFixed(3)).join(', '); tr.lastChild.appendChild(cv); t.appendChild(tr);
+    });
+    sec.appendChild(t); frag.appendChild(sec);
+  }
+  if (my !== statSeq) return;
+  box.innerHTML = ''; box.appendChild(frag);
+  const nS = DB.samples.filter(s => s.embName === embName()).length, dim = E.dim, nC = heads.reduce((a, h) => a + headData(h).classes.length, 0);
+  $('exp-info').textContent = `サイズの目安： 軽量 約${(nC * dim * 8 / 1024).toFixed(0)}KB ／ 全サンプル 約${(nS * dim * 7 / 1048576).toFixed(1)}MB　（特徴量: ${embName()}）`;
+}
+function renderHist() {
+  const hs = (DB.meta.hist || []), box = $('hist'); if (!hs.length) { box.textContent = '（まだ登録がありません）'; return; }
+  const agg = {};
+  hs.forEach(h => Object.entries(h.r || {}).forEach(([k, [ok, n]]) => { const key = h.method + '|' + k; (agg[key] = agg[key] || [0, 0, 0]); agg[key][0] += ok; agg[key][1] += n; agg[key][2]++; }));
+  let html = '<table><tr><th>方式</th><th>項目</th><th>累計の的中率</th><th>登録回数</th></tr>';
+  Object.entries(agg).forEach(([key, [ok, n, c]]) => { const [m, k] = key.split('|'); html += `<tr><td>${m === 'rule' ? '従来ルール' : '学習'}</td><td>${HEADS[k]}</td><td class="n">${(ok / n * 100).toFixed(1)}% (${ok}/${n})</td><td class="n">${c}</td></tr>`; });
+  html += '</table><div style="margin-top:6px">直近の登録：</div><table><tr><th>日時</th><th>方式</th><th>結果（的中/総数）</th></tr>';
+  hs.slice(-8).reverse().forEach(h => { const d = new Date(h.t); html += `<tr><td>${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}</td><td>${h.mode === 'other' ? 'その他' : (h.method === 'rule' ? '従来' : '学習')}</td><td>${Object.entries(h.r || {}).map(([k, [ok, n]]) => `${HEADS[k]} ${ok}/${n}`).join('、') || '（固定など対象外）'}</td></tr>`; });
+  box.innerHTML = html + '</table>';
+}
+async function afterDataChange() {
+  renderHist(); refreshClassList();
+  $('dbstat').textContent = DB.ok ? `保存: ブラウザ内（IndexedDB） ${DB.samples.length}件` : '※このブラウザでは保存できません（このページを閉じると消えます）';
+  await refreshStats();
+}
+
+/* ============================ JSON ============================ */
+function buildJson(full) {
+  const en = embName(), heads = {}, accuracy = {};
+  for (const h of ['color', 'bonus', 'plus', 'next', 'other']) {
+    const H = headData(h); if (!H) continue;
+    const r = S.evalRes[h]; const cents = r ? r.centroids : (() => { const o = H.classes.map(() => new Float64Array(H.d)); H.ci.forEach((c, i) => { for (let j = 0; j < H.d; j++) o[c][j] += H.M[i * H.d + j]; }); return o.map(v => { const s = Math.sqrt(v.reduce((a, x) => a + x * x, 0)) || 1; return Float32Array.from(v, x => x / s); }); })();
+    const counts = H.classes.map(c => H.labels.filter(l => l === c).length);
+    heads[h] = { labels: H.classes, counts, centroids: cents.map(v => Array.from(v, x => Math.round(x * 1e5) / 1e5)) };
+    if (r) accuracy[h] = { samples: H.n, knn_loo: r.knn, knn_loo_other_registration: r.knnG, centroid_loo: r.cent };
+  }
+  const j = {
+    format: 'ninnsiki', version: 1, createdAt: new Date().toISOString(), kind: full ? 'full' : 'light',
+    embedder: { name: en, dim: en === 'mobilenet_v1_100' ? 1024 : 192, library: en === 'mobilenet_v1_100' ? '@tensorflow-models/mobilenet 2.1.1 (version 1, alpha 1.0), model.infer(img, true)' : 'canvas 8x8 RGB (value/255-0.5)', l2normalized: true,
+      input: en === 'mobilenet_v1_100' ? 'crop → 224x224 (drawImage scaling) → batch → infer(embedding)' : 'crop → 8x8 (drawImage scaling)' },
+    crops: { note: 'ぷよモード。盤面は 8列 x 13ユニット（NEXT段=1、盤面6行=各2）。cell=マス全体、core=マス中心の50%(25%〜75%)', color: 'core', plus: 'core（ハート除く）', bonus: 'cell', next: 'cell（NEXT段）' },
+    classify: { kNN: { k: K, similarity: 'cosine', weight: 'max(0,sim)^4' }, centroid: 'nearest cosine to class mean (L2-normalized)' },
+    labels: { color: '0=ハート 1=赤 2=青 3=緑 4=黄 5=紫', plus: '0/1', bonus: '0/1', next: '1〜5' },
+    heads, accuracy,
+  };
+  if (full) j.samples = DB.samples.filter(s => s.embName === en).map(s => ({ h: s.head, l: s.label, r: s.reg, e: Array.from(s.emb, x => Math.round(x * 1e4) / 1e4) }));
+  return j;
+}
+function download(name, obj) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(obj)], { type: 'application/json' })); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+const stamp = () => { const d = new Date(); return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`; };
+$('btn-exp-light').onclick = () => { if (!DB.samples.length) { msg('データがありません。'); return; } download(`ninnsiki_light_${stamp()}.json`, buildJson(false)); };
+$('btn-exp-full').onclick = () => { if (!DB.samples.length) { msg('データがありません。'); return; } download(`ninnsiki_full_${stamp()}.json`, buildJson(true)); };
+$('imp').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    const j = JSON.parse(await f.text());
+    if (j.format !== 'ninnsiki' || !Array.isArray(j.samples)) throw new Error('「全サンプル入りJSON」ではありません（軽量JSONは取り込めません）');
+    const en = j.embedder.name, map = new Map(), recs = [];
+    j.samples.forEach(s => { if (!map.has(s.r)) map.set(s.r, ++REGSEQ); recs.push({ head: s.h, label: String(s.l), reg: map.get(s.r), embName: en, emb: l2(Float32Array.from(s.e)) }); });
+    await DB.add(recs); msg(`取り込みました（${recs.length}件、特徴量 ${en}）。` + (en !== embName() ? '\n※いま選んでいる特徴量と違うため、特徴量の欄を切り替えると使えます。' : '')); await afterDataChange();
+  } catch (err) { msg('取り込みエラー: ' + err.message); }
+};
+$('btn-clear').onclick = async () => {
+  if (!confirm('保存した学習データをすべて削除します。よろしいですか？（先にJSONで書き出しておくと安全です）')) return;
+  await DB.removeWhere(() => true); await DB.setMeta('hist', []); await DB.setMeta('otherClasses', []); msg('削除しました。'); await afterDataChange();
+};
+
+/* ============================ モード切替・初期化 ============================ */
+function setMode(m) {
+  S.mode = m; [...$('mode-seg').children].forEach(b => b.classList.toggle('on', b.dataset.m === m));
+  const p = m === 'puyo';
+  $('puyo-card').hidden = !p; $('other-card').hidden = p; $('puyo-img-row').hidden = !p; $('other-img-row').hidden = p;
+  $('method').querySelector('[value=rule]').disabled = !p; if (!p) $('method').value = 'learn';
+  $('mode-help').textContent = p ? 'ぷよモード：盤面の画像から自動で8×6マスとNEXTを切り取り、色・ボーナス・プラスを判定します。' : 'それ以外モード：画像の上をドラッグして切り取り、名前を割り当てて登録します。';
+  S.manual = false; $('btn-manual').classList.remove('p');
+  if (S.src) { if (p) { S.board ? recognize() : autoBoardAndRecognize(); } else { drawPreview(); renderItems(); } }
+}
+[...$('mode-seg').children].forEach(b => b.onclick = () => setMode(b.dataset.m));
+window.addEventListener('resize', () => { if (S.src) drawPreview(); });
+(async () => {
+  setMode('puyo'); await DB.open(); await afterDataChange(); await loadEmbedder(); await afterDataChange();
+})();
+</script>
+</body>
+</html>
