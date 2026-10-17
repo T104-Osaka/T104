@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/sim.css">
     <link rel="stylesheet" href="css/board.css">
     <link rel="stylesheet" href="css/playback.css">
 
@@ -17,16 +18,6 @@
 <style>
 body{max-width:none;margin:0;padding:16px;line-height:1.35;min-height:100vh}
 h1{color:var(--acc);font-size:1.6em;text-align:center;margin:6px 0 14px}
-.panel{background:var(--card);border:1px solid var(--line);border-radius:10px;box-sizing:border-box}
-.nav-back{max-width:1280px;margin:0 auto 12px;width:95%}
-.nav-back a{font-weight:700;font-size:.95em}
-.nav-back a:hover{text-decoration:underline}
-.usage-section{max-width:1280px;width:95%;margin:0 auto 16px;padding:12px 15px;border-left:6px solid var(--acc);font-size:.85em}
-.usage-head{cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:700}
-#usage-icon{transition:transform .3s;display:inline-block}
-#usage-content{max-height:0;overflow:hidden;transition:max-height .3s ease-out}
-.wrapper{display:flex;gap:22px;justify-content:center;max-width:1280px;width:95%;margin:0 auto;align-items:flex-start;flex-wrap:wrap}
-.side-input{flex:0 0 380px;max-width:100%;padding:14px}
 .main-display{flex:1 1 520px;display:flex;flex-direction:column;gap:16px;min-width:0}
 .sec-title{font-size:.8em;font-weight:700;color:var(--acc);margin:12px 0 6px;border-left:4px solid var(--acc);padding-left:7px}
 .sec-title:first-child{margin-top:0}
@@ -35,7 +26,7 @@ h1{color:var(--acc);font-size:1.6em;text-align:center;margin:6px 0 14px}
 .frow{display:flex;align-items:center;justify-content:space-between}
 .flabel{width:46px;text-align:right;margin-right:4px;font-size:10px;color:var(--mut);white-space:nowrap;overflow:hidden}
 input.ff{width:62px;height:22px;font-size:12px;text-align:center;border-radius:4px;padding:0}
-.mini{padding:4px 10px;font-size:12px}
+input[type=number].ff{border:1px solid var(--line);background:var(--card);color:var(--fg)}
 .lrow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px}
 .lrow select{padding:4px 6px;font-size:12px}
 #load-status{font-size:12px;color:var(--mut);margin-top:6px;min-height:1.2em}
@@ -105,7 +96,6 @@ table.sum td:first-child,table.sum th:first-child{text-align:left}
 
 .opt{display:flex;align-items:center;gap:4px;font-size:.8em;font-weight:700;color:var(--mut)}
 .opt input{width:58px;height:26px;font-size:13px;text-align:center;border-radius:4px;padding:0}
-#search-btn{background:linear-gradient(#e8590c,#c2410c);color:#fff;border:0;border-radius:20px;padding:8px 20px;font-weight:700;font-size:14px;box-shadow:0 3px #9a3412}
 #search-status{font-size:12.5px;color:var(--mut);padding:2px 12px 8px}
 #cand-box{padding:0 12px 10px;overflow-x:auto}
 #cand-box table.sum{margin-top:4px;min-width:0;width:100%}
@@ -138,10 +128,27 @@ table.sum td:first-child,table.sum th:first-child{text-align:left}
         <div id="fields-next" class="fgrid"></div>
         <div class="sec-title">ダメージ設定（空欄は初期値）</div>
         <div id="fields-dmg" class="fgrid"></div>
+        <div class="sec-title">探索の設定</div>
+        <div class="fgrid">
+            <div class="frow" title="なぞるマスの最大個数"><label class="flabel" for="max-trace">なぞ数</label><input type="number" id="max-trace" class="ff" min="1" max="48" value="10"></div>
+            <div class="frow" title="探索の打ち切り時間（秒）"><label class="flabel" for="search-sec">実行時間</label><input type="number" id="search-sec" class="ff" min="1" max="600" value="30"></div>
+            <div class="frow" title="この回数だけ改善しなければ別の出発点へ移る"><label class="flabel" for="patience">粘り</label><input type="number" id="patience" class="ff" min="1" max="100000" value="20"></div>
+            <div class="frow" title="w_N:枠Nへ保存 / r_N:枠Nを読込 / rr_N:2秒ごとに枠Nを見に行き、盤面1行目が変わったら読込して探索"><label class="flabel" for="spare12">予備12</label><input type="text" id="spare12" class="ff" value="rr_1" maxlength="8" autocomplete="off"></div>
+            <div></div>
+            <div style="text-align:right"><button id="auto-done" class="mini" onclick="autoDone()" hidden style="margin-top:0;background:var(--acc);color:#fff;border-color:var(--acc)">✅ 完了</button></div>
+        </div>
+        <button id="search-btn" class="btn" onclick="startSearch()">🚀 探索開始</button>
+
+        <div class="best-score-container">
+            <div id="progress-container" class="progress-outer"><div id="progress-bar" class="progress-inner"></div></div>
+            <div class="best-score-label">今回の最高ダメージ</div>
+            <div id="best-score-display" class="best-score-value">0</div>
+        </div>
+
 
         <div class="sec-title">読み込み / 保存（Firebase）</div>
         <div class="lrow">
-            <select id="src-sel">
+            <select id="src-sel" style="flex:1 1 100%">
                 <option value="puyodamage_slots">ダメージシム</option>
                 <option value="puyoyume_slots">うたたねシム</option>
                 <option value="puyo_slots">解析シム</option>
@@ -171,12 +178,6 @@ table.sum td:first-child,table.sum th:first-child{text-align:left}
                 <span class="lab">塗る色</span>
                 <span id="palette" style="display:contents"></span>
                 <span class="sep"></span>
-                <label class="opt">最大なぞり数<input type="number" id="max-trace" min="1" max="48" value="10"></label>
-                <label class="opt">探索(秒)<input type="number" id="search-sec" min="1" max="600" value="30"></label>
-                <label class="opt">粘り<input type="number" id="patience" min="1" max="100000" value="20"></label>
-                <label class="opt" title="w_N:枠Nへ保存 / r_N:枠Nを読込 / rr_N:2秒ごとに枠Nを見に行き、盤面1行目が変わったら読込して探索">予備12<input type="text" id="spare12" value="rr_1" style="width:64px" autocomplete="off"></label>
-                <button id="search-btn" onclick="startSearch()">🚀 探索開始</button>
-                <button id="auto-done" class="mini" onclick="autoDone()" hidden style="background:var(--acc);color:#fff;border-color:var(--acc)">✅ 完了</button>
                 <button class="mini" onclick="clearTrace()">なぞりを全消し</button>
             </div>
             <div id="search-status">条件を入れて「🚀 探索開始」を押してください</div>
@@ -876,6 +877,7 @@ function startAutoRead(slot) {
     stopAutoRead();
     autoPrevRow1 = null; autoState = 'watch';
     setSearchStatus(`監視中（読み込み元の枠${slot}を2秒ごとに確認）`);
+    document.getElementById('best-score-display').textContent = `監視中(${slot})`;
     rrTimer = setInterval(autoTick, 2000);
     autoTick();                                              // 1回目は、比べる基準を取るだけ
 }
@@ -918,11 +920,21 @@ function autoDone() {                                        // 「完了」が�
     document.getElementById('auto-done').hidden = true;
     if (rrTimer) { autoState = 'watch'; setSearchStatus('監視中（読み込み元の枠を2秒ごとに確認）'); }
 }
+function showProgressBar(seconds) {
+    const c = document.getElementById('progress-container'), bar = document.getElementById('progress-bar');
+    c.style.display = 'block'; bar.style.animation = 'none'; void bar.offsetWidth; bar.style.animation = `growBar ${seconds}s linear forwards`;
+}
+function finishProgressBar() {
+    const c = document.getElementById('progress-container'), bar = document.getElementById('progress-bar');
+    bar.style.animation = 'none'; bar.style.transform = 'scaleX(1)';
+    setTimeout(() => { c.style.display = 'none'; bar.style.transform = 'scaleX(0)'; }, 50);
+}
 function runNormalSearch() {
     if (searching) return;
     const inp = readInput();
     const job = { inp, seconds: numOr('search-sec', 10, 1, 600), patience: Math.round(numOr('patience', 20, 1, 100000)), X: paintColor, N: maxTrace() };
     cands = []; searching = true; poolBest = new Map();
+    document.getElementById('best-score-display').textContent = '探索中'; showProgressBar(job.seconds);
     document.getElementById('search-btn').textContent = '⏹ 停止';
     setSearchStatus('探索の準備中...');
     launchPool('c', job);
@@ -941,7 +953,7 @@ function launchPool(kind, job) {
         if (dead || started) return;
         teardown();
         if (kind === 'c') { console.warn('C版を使えないのでJS版に切り替えます:', why); launchPool('js', job); }
-        else { setSearchStatus('Workerを作れませんでした: ' + why); searching = false; document.getElementById('search-btn').textContent = '🚀 探索開始'; }
+        else { setSearchStatus('Workerを作れませんでした: ' + why); searching = false; finishProgressBar(); document.getElementById('search-btn').textContent = '🚀 探索開始'; }
     };
     const begin = () => {
         started = true; clearTimeout(fb); engineName = kind === 'c' ? `C版(wasm)×${subCount}` : `JS版×${nw}`;
@@ -986,7 +998,7 @@ function stopSearch() {
 function finishSearch() {
     if (!searching) return;
     searching = false;
-    clearInterval(poolTimer); poolTimer = null;
+    clearInterval(poolTimer); poolTimer = null; finishProgressBar();
     pool.forEach(w => w.terminate()); pool = [];
     document.getElementById('search-btn').textContent = '🚀 探索開始';
     updateSearchView(true);
@@ -999,6 +1011,7 @@ function updateSearchView(final) {
     const all = sortedCands();
     cands = all.slice(0, 10);
     const best = all.length ? fmt(all[0].sc) : '—';
+    if (all.length) document.getElementById('best-score-display').textContent = best;
     setSearchStatus(`${final ? '完了' : '探索中'}（${engineName}）: ${fmt(el)}秒 ／ ${evals.toLocaleString()}通り評価（${Math.round(evals / Math.max(el, 0.001)).toLocaleString()}/秒）／ 最高ダメージ ${best}`);
     renderCands();
 }
