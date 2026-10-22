@@ -66,12 +66,12 @@ input.input-field{width:62px;height:22px;font-size:12px;text-align:center;border
 .playback-title{font-size:1.2em;color:#e67e22;font-weight:700;white-space:nowrap}
 .playback-status{font-size:1.1em;color:var(--acc);font-weight:700;background:var(--bg);padding:6px 16px;border-radius:20px;border:1px solid var(--line);white-space:nowrap}
 .playback-row{display:flex;align-items:flex-end;justify-content:center;gap:16px;flex-wrap:wrap}
-.playback-erase{display:flex;flex-direction:column;gap:6px;white-space:nowrap}
-.erase-grid{display:grid;grid-template-columns:repeat(2,auto);grid-template-rows:repeat(3,auto);grid-auto-flow:column;gap:6px}
-.erase-chip{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:4px 8px;font-size:.85em;line-height:1.25;white-space:nowrap}
+.playback-erase{display:flex;flex-direction:column;gap:6px;white-space:nowrap;width:490px;max-width:100%;flex:0 0 auto;font-variant-numeric:tabular-nums}
+.erase-grid{display:grid;grid-template-columns:repeat(2,240px);grid-template-rows:repeat(3,auto);grid-auto-flow:column;gap:6px}
+.erase-chip{display:flex;align-items:center;gap:6px;box-sizing:border-box;overflow:hidden;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:4px 8px;font-size:.85em;line-height:1.25;white-space:nowrap}
 .erase-chip.hot{border-color:#e67e22;box-shadow:0 0 0 2px rgba(230,126,34,.35)}
 .erase-chip.zero{opacity:.45}
-.erase-sum{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:.85em;line-height:1.5}
+.erase-sum{box-sizing:border-box;min-height:calc(4.5em + 14px);overflow:hidden;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:.85em;line-height:1.5}
 .erase-dot{width:16px;height:16px;border-radius:50%;border:1px solid rgba(0,0,0,.35);flex:0 0 auto}
 .erase-now{color:#e67e22;font-weight:700}
 .playback-controls{display:flex;gap:15px;margin-top:20px}
@@ -1214,11 +1214,11 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
           const cols = ["#ffdae9","#ff3e3e","#4da3ff","#3eff3e","#ffeb3e","#ae81ff"];
           const box = document.getElementById('playback-erase');
           const inf = step.info, cb = step.cumBoost || 0;
-          let html = `<div class="erase-sum">${inf ? `第${inf.k}連鎖: 分離数 <b>${inf.groups}</b> ・連鎖倍率 <b>×${fm(inf.chainMult)}</b><br>` : ''}ブースト <b>${cb}</b>個 → <b>+${Math.min(cb * 4, 200)}%</b><br><small>ダメージは最終ブースト ×${fm(step.finalMult || 1)} 込み</small></div>`;
+          let html = `<div class="erase-sum">${inf ? `第${inf.k}連鎖: 分離数 <b>${inf.groups}</b> ・連鎖倍率 <b>×${fm(inf.chainMult)}</b><br>` : '&nbsp;<br>'}ブースト <b>${cb}</b>個 → <b>+${Math.min(cb * 4, 200)}%</b><br><small>ダメージは最終ブースト ×${fm(step.finalMult || 1)} 込み</small></div>`;
           html += '<div class="erase-grid">' + [1,2,3,4,5,0].map(k => {
               const now = step.erased ? step.erased[k] : 0, cum = step.cumErased ? step.cumErased[k] : 0;
               const pts = step.cumPts ? step.cumPts[k] : 0;
-              const sub = (inf && k >= 1 && inf.nC[k] > 0) ? `<br><small>同時${inf.nC[k]}×${fm(inf.sameMult[k])}→+${fmt(step.erasedPts[k])}</small>` : '';
+              const sub = (inf && k >= 1 && inf.nC[k] > 0) ? `<br><small>同時${inf.nC[k]}×${fm(inf.sameMult[k])}→+${fmt(step.erasedPts[k])}</small>` : '<br><small>&nbsp;</small>';
               const line2 = k === 0 ? '<small>同時消し外</small>' : `<small>${fmt(pts)}</small>`;
               return `<div class="erase-chip${now > 0 ? ' hot' : ''}${cum === 0 ? ' zero' : ''}"><span class="erase-dot" style="background:${cols[k]}"></span><span>${names[k]} 計<b>${cum}</b>個${now > 0 ? ` <span class="erase-now">(+${now})</span>` : ''}<br>${line2}${sub}</span></div>`;
           }).join('') + '</div>';

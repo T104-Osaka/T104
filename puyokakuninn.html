@@ -5,7 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/board.css">
-    <link rel="stylesheet" href="css/playback.css">
+    <style>
+/* 共通CSSを使わず、このページの中に持つ */
+/* css/playback.css — 連鎖シミュレーション（コマ送り）の共通部品
+   共通: 外枠(.playback-section) / 見出し(.playback-header .playback-title .playback-status) / 操作ボタン(.playback-controls .playback-btn)
+   ページごとに違う部分（盤面の横の消去数の枠 .playback-row .playback-erase .erase-* など）は、各ページに書く */
+.playback-section{width:95%;max-width:1280px;margin:40px auto;padding:25px;background:var(--card);border:1px solid var(--line);border-left:6px solid #e67e22;border-radius:10px;display:flex;flex-direction:column;align-items:center}
+.playback-header{display:flex;justify-content:center;align-items:center;gap:16px;flex-wrap:wrap;width:100%;max-width:1100px;margin-bottom:15px}
+.playback-title{font-size:1.2em;color:#e67e22;font-weight:700;white-space:nowrap}
+.playback-status{font-size:1.1em;color:var(--acc);font-weight:700;background:var(--bg);padding:6px 16px;border-radius:20px;border:1px solid var(--line);white-space:nowrap}
+.playback-controls{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;justify-content:center}
+.playback-btn{background:#3498db;color:#fff;border:none;padding:10px 24px;border-radius:20px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 3px rgba(0,0,0,.25)}
+.playback-btn:active{transform:translateY(2px);box-shadow:0 1px rgba(0,0,0,.25)}
+.playback-btn:disabled{background:#7f8c8d;box-shadow:none}
+
+    </style>
 
     <title>ぷよクエ ぬりかえ確認シミュレータ（puyokakuninn）</title>
     <meta name="description" content="自分で塗り替えた盤面をクリックで再現し、連鎖・ダメージ・消えた個数（ボーナスエリア3倍あり／なし）を確認します。">
@@ -94,11 +108,11 @@ table.sum td:first-child,table.sum th:first-child{text-align:left}
 .note{font-size:.78em;color:var(--mut);margin-top:8px}
 
 .playback-row{display:flex;align-items:flex-start;justify-content:center;gap:18px;flex-wrap:wrap}
-.playback-erase{display:flex;flex-direction:column;gap:6px;min-width:230px}
-.erase-chip{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:4px 10px;font-size:.85em;line-height:1.3}
+.playback-erase{display:flex;flex-direction:column;gap:6px;width:300px;max-width:100%;flex:0 0 auto;font-variant-numeric:tabular-nums}
+.erase-chip{display:flex;align-items:center;gap:6px;box-sizing:border-box;overflow:hidden;white-space:nowrap;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:4px 10px;font-size:.85em;line-height:1.3}
 .erase-chip.hot{border-color:#e67e22;box-shadow:0 0 0 2px rgba(230,126,34,.35)}
 .erase-chip.zero{opacity:.45}
-.erase-sum{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:.85em;line-height:1.5}
+.erase-sum{box-sizing:border-box;min-height:calc(6em + 14px);overflow:hidden;white-space:nowrap;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:.85em;line-height:1.5}
 .erase-dot{width:16px;height:16px;border-radius:50%;border:1px solid rgba(0,0,0,.35);flex:0 0 auto}
 .erase-now{color:#e67e22;font-weight:700}
 @media (max-width:760px){.side-input{flex-basis:100%}.grid{grid-template-columns:30px repeat(8,34px)}.grid .cell{width:34px;height:34px}.grid .cell.header-cell.rh,.grid .cell.origin-cell{width:30px}.grid .pz{width:27px;height:27px}.next-puyo-row{margin-left:33px}.next-puyo-cell{width:34px}}
@@ -609,12 +623,12 @@ function renderStep() {
     drawNextRow('playback-next-cell', nc, np);
 
     const inf = st.info, cu = st.cum, sum = a => a.reduce((x, y) => x + y, 0);
-    let html = `<div class="erase-sum">${inf ? `第${inf.k}連鎖: 分離数 <b>${inf.groups}</b> ・連鎖倍率 <b>×${fm(inf.chainMult)}</b><br>` : ''}` +
+    let html = `<div class="erase-sum">${inf ? `第${inf.k}連鎖: 分離数 <b>${inf.groups}</b> ・連鎖倍率 <b>×${fm(inf.chainMult)}</b><br>` : '&nbsp;<br>'}` +
         `ブースト <b>${cu.boost}</b>個 → <b>+${Math.min(cu.boost * 4, 200)}%</b><br>` +
         `<small>ダメージは最終ブースト ×${fm(st.finalMult || 1)} 込み</small><br>合計 BE3倍なし <b>${sum(cu.cnt1)}</b>個 ／ BE3倍あり <b>${sum(cu.cnt3)}</b>個</div>`;
     html += [1, 2, 3, 4, 5, 0].map(k => {
         const now = st.erased ? st.erased[k] : 0, c1 = cu.cnt1[k], c3 = cu.cnt3[k];
-        const sub = (inf && k >= 1 && inf.cnt1[k] > 0) ? `<br><small>同時${inf.cnt1[k]}個 ×${fm(inf.sameMult[k])}</small>` : '';
+        const sub = (inf && k >= 1 && inf.cnt1[k] > 0) ? `<br><small>同時${inf.cnt1[k]}個 ×${fm(inf.sameMult[k])}</small>` : '<br><small>&nbsp;</small>';
         return `<div class="erase-chip${now > 0 ? ' hot' : ''}${c1 === 0 ? ' zero' : ''}"><span class="erase-dot" style="background:${COLORS[k]}"></span><span>${NAMES[k]} 計<b>${c1}</b>個${now > 0 ? ` <span class="erase-now">(+${now})</span>` : ''}<br><small>BE3倍あり <b>${c3}</b>個${k >= 1 ? ` ・ ${fmt(cu.dmg[k])}` : ''}</small>${sub}</span></div>`;
     }).join('');
     document.getElementById('playback-erase').innerHTML = html;
