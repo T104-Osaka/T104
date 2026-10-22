@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/board.css">
     
-    <title>ぷよクエ ぬりかえ ダメージシミュレータ（puyodamage）</title>
+    <title>ぷよクエ ダメージシミュレータ（puyodamage）</title>
     <meta name="description" content="色を塗り替えてからなぞり消しをして連鎖を起こす、最終ダメージが最大になる塗り替えとなぞり方を探します。">
     <meta name="keywords" content="ぷよクエ解析シミュレータ,ぷよつかい大会,ぷよクエ,シミュレータ,ぬりかえ,ぷよぷよクエスト,計算,スコア,解析,なぞり消し,連鎖,最適解">
     
@@ -584,7 +584,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         for (let r = 0; r <= 6; r++) {
             for (let c = 0; c <= 8; c++) {
                 const cell = document.createElement('div');
-                if (r === 0 && c === 0) { cell.className = 'cell origin-cell'; cell.textContent = '行\\列'; }
+                if (r === 0 && c === 0) { cell.className = 'cell origin-cell'; cell.textContent = '行/列'; }
                 else if (r === 0) { cell.className = 'cell header-cell'; cell.textContent = c; }
                 else if (c === 0) { cell.className = 'cell header-cell'; cell.style.width = '45px'; cell.textContent = r; }
                 else { cell.className = 'cell data-cell'; cell.innerHTML = '<div class="pz"></div>'; cell.id = `${gridId}-cell-${(r-1)*8 + (c-1)}`; }

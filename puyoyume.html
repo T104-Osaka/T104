@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/board.css">
     
-    <title>ぷよクエ 一色ぬりかえ連鎖シミュレータ（puyoyume）</title>
+    <title>ぷよクエうたたねシミュレータ（puyoyume）</title>
     <meta name="description" content="1色だけ塗り替えて、なぞり消しをせずに連鎖を起こす盤面を探します。色ごとの係数で、たくさん消したい色を指定できます。">
     <meta name="keywords" content="ぷよクエ解析シミュレータ,ぷよつかい大会,ぷよクエ,シミュレータ,ぬりかえ,ぷよぷよクエスト,計算,スコア,解析,なぞり消し,連鎖,最適解">
     
@@ -93,7 +93,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
 </head>
 <body>
 
-    <h1> ぷよクエ 一色ぬりかえ連鎖シミュレータ </h1>
+    <h1> ぷよクエ うたたねシミュレータ </h1>
 
     <div class="nav-back sim-nav">
     <a href="index.html">← ポータルへ戻る</a>
@@ -265,7 +265,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         "13121232", "25241231", "21545231", "45512452", "44132442", "35545511", 
         "10001001", "01100111", "01011101", "11011011", "11110011", "01111011", 
         "00000000", "10001100", "11001010", "01000111", "01101011", "00110110", 
-        "11111111", "11111111", "12", "0", "3", "5", 
+        "11111111", "11111111", "12", "0", "3", "11", 
         "0", "3", "400", "1", "1", "1", 
         "1", "1", "1", "0", "0", "rr_1"
     ];
@@ -515,7 +515,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         for (let r = 0; r <= 6; r++) {
             for (let c = 0; c <= 8; c++) {
                 const cell = document.createElement('div');
-                if (r === 0 && c === 0) { cell.className = 'cell origin-cell'; cell.textContent = '行\\列'; }
+                if (r === 0 && c === 0) { cell.className = 'cell origin-cell'; cell.textContent = '行/列'; }
                 else if (r === 0) { cell.className = 'cell header-cell'; cell.textContent = c; }
                 else if (c === 0) { cell.className = 'cell header-cell'; cell.style.width = '45px'; cell.textContent = r; }
                 else { cell.className = 'cell data-cell'; cell.innerHTML = '<div class="pz"></div>'; cell.id = `${gridId}-cell-${(r-1)*8 + (c-1)}`; }
