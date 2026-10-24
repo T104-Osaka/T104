@@ -1,7 +1,7 @@
 // tokubetu_rule_worker.js — 親Worker。子Worker（tokubetu_rule_sub_worker.js）を複数立てて、結果を1つにまとめて画面へ返す
 // (論理スレッド - 4) と 8 のうち、小さい方を選択（最低 1 は確保）。puyodamage_worker.js と同じ数え方
 const logicalThreads = navigator.hardwareConcurrency || 4;
-const numSubWorkers = Math.max(1, Math.min(logicalThreads - 4, 8));
+const numSubWorkers = Math.max(1, Math.min(logicalThreads - 4, 100));
 
 const subs = [];
 const evals = new Array(numSubWorkers).fill(0);
