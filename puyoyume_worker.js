@@ -1,6 +1,6 @@
 // (論理スレッド - 4) と 15 のうち、小さい方を選択（最低 1 は確保）
 const logicalThreads = navigator.hardwareConcurrency || 4; 
-const numSubWorkers = Math.max(1, Math.min(logicalThreads - 4, 8));
+const numSubWorkers = Math.max(1, Math.min(logicalThreads - 4, 100));
 
 console.log(`System Logical Threads: ${logicalThreads}`);
 console.log(`Worker Pool Size: ${numSubWorkers}`);
