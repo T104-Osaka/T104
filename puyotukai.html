@@ -235,6 +235,11 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         <div id="hist-graph"></div>
         <textarea id="hist-text" readonly rows="3" style="width:100%;box-sizing:border-box;margin-top:8px;font-size:12px;"></textarea>
         <button class="mini" onclick="copyHistory()">コピー</button> <span id="hist-copied" class="stat-label"></span>
+        <div id="wr-box" style="margin-top:14px;padding-top:10px;border-top:1px solid var(--line)">
+            <div class="stat-label" style="margin-bottom:6px;">Workerごとの結果（ボタンを押すと下に表示）</div>
+            <div id="wr-buttons" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+            <div id="wr-detail" style="margin-top:10px;"></div>
+        </div>
     </div>
 
     <div class="stats-container">
@@ -320,6 +325,11 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
             finishProgressBar();
             autoSearchFinished();
         } 
+        else if (e.data.type === 'WORKER_RESULT') {
+            wrData[e.data.worker] = e.data;
+            renderWorkerResults();
+            if (wrSel === e.data.worker) renderWorkerDetail();
+        }
         else if (e.data.type === 'PATTERNS') {
             addPatternCount(e.data.count);
         } 
@@ -342,6 +352,58 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
     function resetHistory() {
         histData = {};
         document.getElementById('hist-section').hidden = true;
+        wrReset();
+    }
+
+    // 🔍 Workerごとの結果（推移の枠の一番下にボタンを並べ、押したWorkerの結果をその下に表示）
+    let wrData = {}, wrSel = 0, wrGrid = false;
+    function wrReset() {
+        wrData = {}; wrSel = 0; wrGrid = false;
+        const b = document.getElementById('wr-buttons'), d = document.getElementById('wr-detail');
+        if (b) b.innerHTML = '';
+        if (d) d.innerHTML = '';
+    }
+    function wrScoreText(s) { return Number(s).toLocaleString('ja-JP', { maximumFractionDigits: 2 }); }
+    function renderWorkerResults() {
+        document.getElementById('hist-section').hidden = false;
+        const keys = Object.keys(wrData).map(Number);
+        const n = Math.max(histWorkers || 0, keys.length ? Math.max(...keys) : 0);
+        let best = -Infinity; keys.forEach(w => { if (wrData[w].score > best) best = wrData[w].score; });
+        const box = document.getElementById('wr-buttons');
+        box.innerHTML = '';
+        for (let w = 1; w <= n; w++) {
+            const d = wrData[w], b = document.createElement('button');
+            b.className = 'mini'; b.style.marginTop = '0';
+            b.textContent = d ? `Worker${w}: ${wrScoreText(d.score)}${d.score === best ? ' ★' : ''}` : `Worker${w}: …`;
+            b.disabled = !d;
+            if (w === wrSel) { b.style.outline = '3px solid #e67e22'; b.style.outlineOffset = '1px'; }
+            b.onclick = () => { wrSel = w; renderWorkerResults(); renderWorkerDetail(); };
+            box.appendChild(b);
+        }
+    }
+    function wrTraceText(cells) {
+        if (!cells.length) return 'なぞり: なし';
+        if (typeof describeTrace === 'function') return describeTrace(cells);
+        return 'なぞり: ' + cells.map(i => `${Math.floor(i / 8) + 1}行${(i % 8) + 1}列`).join(' ');
+    }
+    function renderWorkerDetail() {
+        const d = wrData[wrSel], box = document.getElementById('wr-detail');
+        if (!d) { box.innerHTML = ''; wrGrid = false; return; }
+        const tapCells = Array.isArray(d.tap) ? d.tap : (d.tap >= 0 ? [d.tap] : []);
+        let changed = 0; d.colorArray.forEach((c, i) => { if (c !== d.originalColorArray[i]) changed++; });
+        if (!wrGrid) {
+            box.innerHTML = '<div id="wr-info" style="font-weight:700;margin-bottom:6px;"></div>' +
+                '<div class="board-container"><div id="wr-board" class="grid"></div></div>' +
+                '<div style="margin-top:8px;"><button class="mini" style="margin-top:0" onclick="applyWorkerResult()">▶ この結果をメインの盤面・連鎖シミュレーションに反映</button></div>';
+            createExcelGrid('wr-board'); wrGrid = true;
+        }
+        document.getElementById('wr-info').textContent = [`Worker${wrSel}の結果: ${wrScoreText(d.score)}`, `ぬりかえ ${changed}個`, wrTraceText(tapCells)].filter(x => x).join(' ／ ');
+        d.colorArray.forEach((color, i) => updateUICell('wr-board', i, color, d.plusArray[i], d.bonusArray[i]));
+        markCells('wr-board', 'tr', tapCells);
+    }
+    function applyWorkerResult() {
+        const d = wrData[wrSel]; if (!d) return;
+        puyoWorker.onmessage({ data: Object.assign({}, d, { type: 'RESULT' }) });
     }
     function addHistory(worker, times, scores) {
         histData[worker] = { times, scores };

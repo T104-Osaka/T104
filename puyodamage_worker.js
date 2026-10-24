@@ -14,6 +14,8 @@ for (let i = 0; i < numSubWorkers; i++) {
     const sw = new Worker('puyodamage_sub_worker.js');
     sw.onmessage = function(e) {
         if (e.data.type === 'RESULT') {
+            // Workerごとの結果は、全部（順位に関係なく）画面へ送る
+            self.postMessage(Object.assign({}, e.data, { type: 'WORKER_RESULT', worker: workerNo }));
             if (e.data.score > bestScoreTotal) {
                 bestScoreTotal = e.data.score;
                 self.postMessage(e.data);

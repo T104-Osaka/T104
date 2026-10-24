@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="news.css">
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/board.css">
     <style>
@@ -12,9 +13,9 @@
          / 小ボタン(.mini) / 探索開始ボタン(.btn) / 最高点の表示(.best-score-*) / 進捗バー(.progress-*)
    ページごとに違う部分（盤面のマスの大きさ・入力欄の並び・連鎖シミュレーション横の枠）は各ページに書く */
 .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;box-sizing:border-box}
-.nav-back{max-width:1280px;margin:0 auto 12px;width:95%}
-.nav-back a{font-weight:700;font-size:.95em}
-.nav-back a:hover{text-decoration:underline}
+.nav-back.sim-nav{max-width:1280px;margin:0 auto 15px;width:95%}
+.nav-back.sim-nav a{font-weight:700;font-size:.95em}
+.nav-back.sim-nav a:hover{text-decoration:underline}
 .usage-section{max-width:1280px;width:95%;margin:0 auto 16px;padding:12px 15px;border-left:6px solid var(--acc);font-size:.85em}
 .usage-head{cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:700}
 #usage-icon{transition:transform .3s;display:inline-block}
@@ -54,15 +55,17 @@
     <meta name="twitter:card" content="summary">
 
 <style>
-body{max-width:none;margin:0;padding:16px;line-height:1.35;min-height:100vh}
-h1{color:var(--acc);font-size:1.6em;text-align:center;margin:6px 0 14px}
+body{max-width:none;margin:0;padding:20px;line-height:1.3;min-height:100vh}
+h1{color:var(--acc);font-size:1.8em;text-align:center;margin-bottom:20px}
 .main-display{flex:1 1 520px;display:flex;flex-direction:column;gap:16px;min-width:0}
 .sec-title{font-size:.8em;font-weight:700;color:var(--acc);margin:12px 0 6px;border-left:4px solid var(--acc);padding-left:7px}
 .sec-title:first-child{margin-top:0}
-.fgrid{display:grid;grid-template-columns:repeat(3,1fr);column-gap:8px;row-gap:6px}
-.fgrid.col{grid-auto-flow:column;grid-template-rows:repeat(6,auto)}
+/* 入力欄は ダメージシムなどと同じ 縦18×横3 の並び（色行・+行・BE行が左の列、その次の列に NEXT・ダメージ設定・探索の設定、右下が予備12） */
+.input-grid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(18,1fr);grid-auto-flow:column;column-gap:8px;row-gap:6px}
+.input-grid>div{display:contents}
+.frow.last-cell{grid-column:3;grid-row:18}
 .frow{display:flex;align-items:center;justify-content:space-between}
-.flabel{width:46px;text-align:right;margin-right:4px;font-size:10px;color:var(--mut);white-space:nowrap;overflow:hidden}
+.flabel{width:45px;text-align:right;margin-right:4px;font-size:10px;color:var(--mut);white-space:nowrap;overflow:hidden}
 input.ff{width:62px;height:22px;font-size:12px;text-align:center;border-radius:4px;padding:0}
 input[type=number].ff{border:1px solid var(--line);background:var(--card);color:var(--fg)}
 .lrow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px}
@@ -86,20 +89,20 @@ input[type=number].ff{border:1px solid var(--line);background:var(--card);color:
 .boards{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
 .board-wrapper{display:flex;flex-direction:column;align-items:flex-start}
 .board-title{font-size:.85em;margin-bottom:4px;border-left:4px solid #3498db;padding-left:8px;font-weight:700}
-.board-container{padding:8px;display:inline-block;max-width:100%;overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:8px}
-.grid{display:grid;grid-template-columns:34px repeat(8,38px);gap:3px}
-.grid .cell{width:38px;height:38px;aspect-ratio:auto;font-size:14px;font-weight:700;cursor:default}
-.grid .cell.header-cell{height:22px;color:var(--acc);font-size:11px;background:var(--bg);border:0}
-.grid .cell.header-cell.rh{width:34px;height:38px}
-.grid .cell.origin-cell{width:34px;height:22px;font-size:9px;color:var(--mut);background:var(--bg);border:0}
-.grid .pz{width:30px;height:30px;text-shadow:1px 1px 2px #000;font-size:15px}
+.board-container{padding:8px;display:inline-block;max-width:100%!important;overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:10px}
+.grid{display:grid;grid-template-columns:45px repeat(8,32px);gap:3px}
+.grid .cell{width:32px;height:32px;aspect-ratio:auto;font-size:14px;font-weight:700;cursor:default}
+.grid .cell.header-cell{color:var(--acc);font-size:11px;background:var(--bg);border:0;border-radius:4px}
+.grid .cell.header-cell.rh{width:45px}
+.grid .cell.origin-cell{width:45px;font-size:10px;color:var(--mut);background:var(--bg);border:0}
+.grid .pz{width:26px;height:26px;text-shadow:1px 1px 2px #000;font-size:14px}
 .grid.paintable .data-cell{cursor:pointer}
 #paint-board{touch-action:none;user-select:none;-webkit-user-select:none}
 .pz.chg{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--fg)}
 .cell.trx{outline:2px dashed var(--cyan);outline-offset:-3px}
 #paint-board .cell.tr::after{content:"✕";position:absolute;font-size:22px;line-height:1;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000;pointer-events:none}
-.next-puyo-row{display:flex;margin-left:37px;gap:3px;margin-bottom:6px}
-.next-puyo-cell{width:38px;height:24px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;border:1px solid var(--line);background:var(--bg);color:#fff;text-shadow:1px 1px 2px #000}
+.next-puyo-row{display:flex;margin-left:48px;gap:3px;margin-bottom:8px}
+.next-puyo-cell{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;border:1px solid var(--line);background:var(--bg);color:#fff;text-shadow:1px 1px 2px #000}
 
 .info{padding:10px 12px;font-size:.88em;display:flex;flex-direction:column;gap:5px}
 .msg{padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg)}
@@ -143,7 +146,7 @@ table.sum td:first-child,table.sum th:first-child{text-align:left}
 
 <h1>ぷよクエ とくべつルール（なぞりぬりかえ）シミュレータ</h1>
 
-<div class="nav-back"><a href="index.html">← ポータルへ戻る</a></div>
+<div class="nav-back sim-nav"><a href="index.html">← ポータルへ戻る</a></div>
 
 <div class="panel usage-section">
     <div class="usage-head" onclick="toggleUsage()"><span>💡 使い方（クリックで展開/格納）</span><span id="usage-icon">▼</span></div>
@@ -160,21 +163,18 @@ table.sum td:first-child,table.sum th:first-child{text-align:left}
 
 <div class="wrapper">
     <div class="panel side-input">
-        <div class="sec-title">盤面（ぬりかえ前）　全て半角</div>
-        <div id="fields-board" class="fgrid col"></div>
-        <div class="sec-title">NEXT</div>
-        <div id="fields-next" class="fgrid"></div>
-        <div class="sec-title">ダメージ設定（空欄は初期値）</div>
-        <div id="fields-dmg" class="fgrid"></div>
-        <div class="sec-title">探索の設定</div>
-        <div class="fgrid">
-            <div class="frow" title="なぞるマスの最大個数"><label class="flabel" for="max-trace">なぞ数</label><input type="number" id="max-trace" class="ff" min="1" max="48" value="10"></div>
-            <div class="frow" title="探索の打ち切り時間（秒）"><label class="flabel" for="search-sec">実行時間</label><input type="number" id="search-sec" class="ff" min="1" max="600" value="30"></div>
-            <div class="frow" title="この回数だけ改善しなければ別の出発点へ移る"><label class="flabel" for="patience">粘り</label><input type="number" id="patience" class="ff" min="1" max="100000" value="20"></div>
-            <div class="frow" title="w_N:枠Nへ保存 / r_N:枠Nを読込 / rr_N:2秒ごとに枠Nを見に行き、盤面1行目が変わったら読込して探索"><label class="flabel" for="spare12">予備12</label><input type="text" id="spare12" class="ff" value="rr_1" maxlength="8" autocomplete="off"></div>
-            <div></div>
-            <div style="text-align:right"><button id="auto-done" class="mini" onclick="autoDone()" hidden style="margin-top:0;background:var(--acc);color:#fff;border-color:var(--acc)">✅ 完了</button></div>
+        <div class="input-grid">
+            <div id="fields-board"></div>
+            <div id="fields-next"></div>
+            <div id="fields-dmg"></div>
+            <div id="fields-search">
+                <div class="frow" title="なぞるマスの最大個数"><label class="flabel" for="max-trace">なぞ数:</label><input type="text" inputmode="numeric" id="max-trace" class="ff" maxlength="2" placeholder="10" autocomplete="off"></div>
+                <div class="frow" title="探索の打ち切り時間（秒）"><label class="flabel" for="search-sec">実行時間:</label><input type="text" inputmode="numeric" id="search-sec" class="ff" maxlength="3" placeholder="30" autocomplete="off"></div>
+                <div class="frow" title="この回数だけ改善しなければ別の出発点へ移る"><label class="flabel" for="patience">粘り:</label><input type="text" inputmode="numeric" id="patience" class="ff" maxlength="6" placeholder="20" autocomplete="off"></div>
+                <div class="frow last-cell" title="w_N:枠Nへ保存 / r_N:枠Nを読込 / rr_N:2秒ごとに枠Nを見に行き、盤面1行目が変わったら読込して探索"><label class="flabel" for="spare12">予備12:</label><input type="text" id="spare12" class="ff" placeholder="rr_1" maxlength="8" autocomplete="off"></div>
+            </div>
         </div>
+        <button id="auto-done" class="mini" onclick="autoDone()" hidden style="margin-top:8px;background:var(--acc);color:#fff;border-color:var(--acc)">✅ 完了</button>
         <button id="search-btn" class="btn" onclick="startSearch()">🚀 探索開始</button>
 
         <div class="best-score-container">
@@ -221,6 +221,11 @@ table.sum td:first-child,table.sum th:first-child{text-align:left}
             <div id="search-status">条件を入れて「🚀 探索開始」を押してください</div>
             <div id="engine-label" style="font-size:11px;color:var(--mut);padding:0 12px 6px">エンジン: 探索を始めると自動で判定します（C言語版 → 無ければ JavaScript 版）</div>
             <div id="cand-box"></div>
+            <div id="wr-box" style="padding:0 12px 12px;display:none">
+                <div style="font-size:12px;color:var(--mut);font-weight:700;margin:6px 0">Workerごとの結果（ボタンを押すと下に表示）</div>
+                <div id="wr-buttons" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+                <div id="wr-detail" style="margin-top:8px;overflow-x:auto"></div>
+            </div>
         </div>
 
         <div class="boards">
@@ -558,7 +563,7 @@ let paintColor = 2;                       // なぞって塗る色 1〜5
 let traceSet = new Set();                 // なぞるマス（塗られるマス）
 let sim = null, steps = [], stepIdx = 0, autoTimer = null;
 let cands = [];                           // 探索結果の候補
-let searching = false, pool = [], poolBest = new Map(), poolEvals = [], poolStart = 0, poolTimer = null;
+let searching = false, pool = [], poolBest = new Map(), poolEvals = [], poolStart = 0, poolTimer = null, poolPer = [], wrSel = -1, wrSig = '';
 
 /* ==========================================================================
    入力欄の生成・読み取り
@@ -608,7 +613,7 @@ function createGrid(id) {
     const g = document.getElementById(id);
     for (let r = 0; r <= 6; r++) for (let c = 0; c <= 8; c++) {
         const cell = document.createElement('div');
-        if (r === 0 && c === 0) { cell.className = 'cell origin-cell'; cell.textContent = '行/列'; }
+        if (r === 0 && c === 0) { cell.className = 'cell origin-cell'; cell.textContent = '行\\列'; }
         else if (r === 0) { cell.className = 'cell header-cell'; cell.textContent = c; }
         else if (c === 0) { cell.className = 'cell header-cell rh'; cell.textContent = r; }
         else { cell.className = 'cell data-cell'; cell.dataset.i = (r - 1) * 8 + (c - 1); cell.id = `${id}-cell-${(r - 1) * 8 + (c - 1)}`; cell.innerHTML = '<div class="pz"></div>'; }
@@ -943,7 +948,7 @@ function autoTick() {
         if (name === null) { autoState = 'watch'; return; }
         setStatus(`自動読込（${name} 枠${n}）`);
         clearResults();
-        const sec = numOr('search-sec', 10, 1, 600);
+        const sec = numOr('search-sec', 30, 1, 600);
         autoGuard = setTimeout(autoSearchFinished, (sec + 10) * 1000);   // 結果が届かなくても止まらないための保険
         runNormalSearch();
     }).catch(err => console.error('自動読込エラー:', err));
@@ -970,8 +975,8 @@ function finishProgressBar() {
 function runNormalSearch() {
     if (searching) return;
     const inp = readInput();
-    const job = { inp, seconds: numOr('search-sec', 10, 1, 600), patience: Math.round(numOr('patience', 20, 1, 100000)), X: paintColor, N: maxTrace() };
-    cands = []; searching = true; poolBest = new Map();
+    const job = { inp, seconds: numOr('search-sec', 30, 1, 600), patience: Math.round(numOr('patience', 20, 1, 100000)), X: paintColor, N: maxTrace() };
+    cands = []; searching = true; poolBest = new Map(); poolPer = []; wrSel = -1; wrSig = ''; renderWorkerResults();
     document.getElementById('best-score-display').textContent = '探索中'; showProgressBar(job.seconds);
     document.getElementById('search-btn').textContent = '⏹ 停止';
     setSearchStatus('探索の準備中...');
@@ -1018,6 +1023,7 @@ function launchPool(kind, job) {
             if (m.type === 'LOAD_ERROR') { fallback(m.message); return; }
             if (m.type === 'READY') { if (m.workers) subCount = m.workers; if (++ready === nw) begin(); return; }
             poolEvals[m.id] = m.evals;
+            if (m.per) m.per.forEach((l, i) => { if (l) poolPer[i] = l; }); else poolPer[m.id] = m.top;   // Workerごとの結果
             for (const t of m.top) {
                 const eff = t.cells.filter(c => job.inp.orig[c] !== job.X).join(',');
                 const old = poolBest.get(eff);
@@ -1052,6 +1058,47 @@ function updateSearchView(final) {
     if (all.length) document.getElementById('best-score-display').textContent = best;
     setSearchStatus(`${final ? '完了' : '探索中'}（${engineName}）: ${fmt(el)}秒 ／ ${evals.toLocaleString()}通り評価（${Math.round(evals / Math.max(el, 0.001)).toLocaleString()}/秒）／ 最高ダメージ ${best}`);
     renderCands();
+    renderWorkerResults();
+}
+// 🔍 Workerごとの結果: ボタンを並べ、押したWorkerの上位をその下に表示（押すとその なぞり方 を盤面に反映）
+function wrList(w) { return (poolPer[w] || []).slice().sort((a, b) => b.sc - a.sc || a.cells.length - b.cells.length).slice(0, 5); }
+function renderWorkerResults() {
+    const box = document.getElementById('wr-box');
+    const n = poolPer.length;
+    if (!n) { box.style.display = 'none'; document.getElementById('wr-buttons').innerHTML = ''; document.getElementById('wr-detail').innerHTML = ''; return; }
+    box.style.display = '';
+    const cur = traceList().join(',');
+    const sig = poolPer.map(l => (l && l.length) ? l[0].sc + ':' + l.length : '-').join('|') + '#' + wrSel + '#' + cur;
+    if (sig === wrSig) return;                     // 変わっていなければ作り直さない（クリックを邪魔しない）
+    wrSig = sig;
+    let best = -Infinity;
+    for (let w = 0; w < n; w++) { const l = wrList(w); if (l.length && l[0].sc > best) best = l[0].sc; }
+    const bt = document.getElementById('wr-buttons'); bt.innerHTML = '';
+    for (let w = 0; w < n; w++) {
+        const l = wrList(w), b = document.createElement('button');
+        b.className = 'mini'; b.style.marginTop = '0';
+        b.textContent = l.length ? `Worker${w + 1}: ${fmt(l[0].sc)}${l[0].sc === best ? ' ★' : ''}` : `Worker${w + 1}: …`;
+        b.disabled = !l.length;
+        if (w === wrSel) { b.style.outline = '3px solid #e67e22'; b.style.outlineOffset = '1px'; }
+        b.onclick = () => { wrSel = w; wrSig = ''; renderWorkerResults(); };
+        bt.appendChild(b);
+    }
+    const dt = document.getElementById('wr-detail');
+    const l = wrSel >= 0 ? wrList(wrSel) : [];
+    if (!l.length) { dt.innerHTML = ''; return; }
+    let h = `<div style="font-weight:700;margin-bottom:4px">Worker${wrSel + 1}の結果（上位${l.length}件）</div><table class="sum"><tr><th>順位</th><th>ダメージ</th><th>連鎖</th><th>なぞり数</th><th></th></tr>`;
+    l.forEach((c, i) => {
+        const on = c.cells.join(',') === cur;
+        h += `<tr${on ? ' style="background:rgba(232,89,12,.12)"' : ''}><td>${i + 1}</td><td>${fmt(c.sc)}</td><td>${c.chains}</td><td>${c.cells.length}</td><td><button class="mini" onclick="applyWorkerCand(${wrSel},${i})">${on ? '表示中' : '盤面に反映'}</button></td></tr>`;
+    });
+    dt.innerHTML = h + '</table>';
+}
+function applyWorkerCand(w, i) {
+    const c = wrList(w)[i]; if (!c) return;
+    traceSet = new Set(c.cells);
+    stepIdx = 0;
+    renderAll();
+    wrSig = ''; renderWorkerResults();
 }
 function setSearchStatus(t) { document.getElementById('search-status').textContent = t; }
 function renderCands() {
@@ -1346,7 +1393,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     setupPaintBoard();
     setColor(paintColor);
-    setTimeout(startSearch, 670);                            // 解析シムなどと同じ: 開いた直後に「探索開始」相当（初期値 rr_1 は監視開始）
+    setTimeout(startSearch, 670);                            // 解析シムなどと同じ: 開いた直後に「探索開始」相当（予備12が空なら そのまま探索、rr_N と書いてあれば監視開始）
 });
 </script>
 </body>

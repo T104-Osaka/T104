@@ -33,7 +33,8 @@ for (let i = 0; i < numSubWorkers; i++) {
         evals[m.id] = m.evals; tops[m.id] = m.top;
         if (m.type === 'done') doneCount++;
         const all = doneCount === numSubWorkers;
-        self.postMessage({ type: all ? 'done' : 'prog', id: 0, evals: evals.reduce((a, b) => a + b, 0), top: merge() });
+        self.postMessage({ type: all ? 'done' : 'prog', id: 0, evals: evals.reduce((a, b) => a + b, 0), top: merge(),
+            per: tops.map(l => l ? l.slice(0, 10) : null) });   // 子Workerごとの上位（Workerごとの結果の表示用）
     };
     sw.onerror = function (err) {                       // wasm が見つからない等。画面側が JavaScript 版に切り替える
         if (readyCount < numSubWorkers && !loadFailed) { loadFailed = true; self.postMessage({ type: 'LOAD_ERROR', message: err.message || 'wasm を読み込めません' }); }
