@@ -47,7 +47,7 @@
 
     </style>
 
-    <title>ぷよクエ とくべつルール（なぞりぬりかえ）シミュレータ</title>
+    <title>ぷよクエ とくべつルール シミュレータ</title>
     <meta name="description" content="なぞり消しの代わりに指定色へぬりかえる「とくべつルール」系スキルの、最適ななぞり方を探索してダメージを計算します。">
     <meta property="og:title" content="ぷよクエ とくべつルール シミュレータ">
     <meta property="og:description" content="なぞりぬりかえの最適解を探索。">
@@ -144,7 +144,7 @@ table.sum td:first-child,table.sum th:first-child{text-align:left}
 </head>
 <body>
 
-<h1>ぷよクエ とくべつルール（なぞりぬりかえ）シミュレータ</h1>
+<h1>ぷよクエ とくべつルール シミュレータ</h1>
 
 <div class="nav-back sim-nav"><a href="index.html">← ポータルへ戻る</a></div>
 
@@ -619,7 +619,7 @@ function createGrid(id) {
     const g = document.getElementById(id);
     for (let r = 0; r <= 6; r++) for (let c = 0; c <= 8; c++) {
         const cell = document.createElement('div');
-        if (r === 0 && c === 0) { cell.className = 'cell origin-cell'; cell.textContent = '行\\列'; }
+        if (r === 0 && c === 0) { cell.className = 'cell origin-cell'; cell.textContent = '行/列'; }
         else if (r === 0) { cell.className = 'cell header-cell'; cell.textContent = c; }
         else if (c === 0) { cell.className = 'cell header-cell rh'; cell.textContent = r; }
         else { cell.className = 'cell data-cell'; cell.dataset.i = (r - 1) * 8 + (c - 1); cell.id = `${id}-cell-${(r - 1) * 8 + (c - 1)}`; cell.innerHTML = '<div class="pz"></div>'; }
