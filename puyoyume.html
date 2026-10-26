@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/board.css">
     
-    <title>ぷよクエ うたたね シミュレータ</title>
+    <title>ぷよクエ 一色ぬりかえ連鎖シミュレータ（puyoyume）</title>
     <meta name="description" content="1色だけ塗り替えて、なぞり消しをせずに連鎖を起こす盤面を探します。色ごとの係数で、たくさん消したい色を指定できます。">
     <meta name="keywords" content="ぷよクエ解析シミュレータ,ぷよつかい大会,ぷよクエ,シミュレータ,ぬりかえ,ぷよぷよクエスト,計算,スコア,解析,なぞり消し,連鎖,最適解">
     
@@ -93,7 +93,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
 </head>
 <body>
 
-    <h1> ぷよクエ うたたね シミュレータ </h1>
+    <h1> ぷよクエ 一色ぬりかえ連鎖シミュレータ </h1>
 
     <div class="nav-back sim-nav">
     <a href="index.html">← ポータルへ戻る</a>
@@ -127,6 +127,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                 <strong>4. 演算時間と探索の方式</strong><br>
                 &emsp;・<strong>実行時間</strong>: 探索の打ち切り時間(s).<br>
                 &emsp;・<strong>山登り</strong>: 空欄のときは 400 で山登り法（塗るマスを1つずつ変えて点数を上げ、その回数だけ改善しなければ別の出発点へ）. <strong>0</strong> を入れると完全ランダム探索.<br>
+                &emsp;・<strong>再</strong>: 山登り（出発点から、改善が止まって別の出発点へ移るまでの1回）を何回やったら、最高点も捨てて完全にやり直すか. 空欄は 10000、<strong>0</strong> ならやり直さない. 小さいほど、こまめにやり直す.<br>
                 &emsp;・<strong>探索深度</strong>: 完全ランダムのとき、塗る個数を上限から何個まで減らして試すか.<br>
                 &emsp;・<strong>連鎖</strong>: NEXT落下後に数える連鎖の上限（入力値＋1回）.<br><br>
 
@@ -264,15 +265,15 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         "BE行 1:", "BE行 2:", "BE行 3:", "BE行 4:", "BE行 5:", "BE行 6:", 
         "N盤面:", "N+:", "塗:", "予備2:", "実行時間:", "探索深度:", 
         "BE保:", "連鎖:", "山登り:", "赤×:", "青×:", "緑×:", 
-        "黄×:", "紫×:", "♡×:", "予備10:", "予備11:", "予備12:"
+        "黄×:", "紫×:", "♡×:", "再:", "予備11:", "予備12:"
     ];
     const placeholderHints = [
-        "13121232", "25241231", "21545231", "45512452", "44132442", "35545511", 
-        "10001001", "01100111", "01011101", "11011011", "11110011", "01111011", 
-        "00000000", "10001100", "11001010", "01000111", "01101011", "00110110", 
-        "11111111", "11111111", "12", "0", "3", "5", 
-        "0", "3", "400", "1", "1", "1", 
-        "1", "1", "1", "0", "0", "rr_1"
+        "13121232", "25241231", "21545231", "45512452", "44132442", "35545511",
+        "10001001", "01100111", "01011101", "11011011", "11110011", "01111011",
+        "00000000", "10001100", "11001010", "01000111", "01101011", "00110110",
+        "11111111", "11111111", "12", "0", "3", "5",
+        "0", "3", "400", "1", "1", "1",
+        "1", "1", "1", "10000", "0", "rr_1"
     ];
 
     const puyoWorker = new Worker('puyoyume_worker.js');
@@ -509,7 +510,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         const inputSection = document.getElementById('input-section');
         for (let i = 0; i < 36; i++) {
             const rowDiv = document.createElement('div');
-            rowDiv.className = 'input-row' + ((i >= 33 && i <= 34) ? ' spare' : '');
+            rowDiv.className = 'input-row' + ((i === 34) ? ' spare' : '');
             rowDiv.innerHTML = `<label class="input-label" for="input-field-${i}">${inputLabels[i]}</label><input type="text" id="input-field-${i}" name="input_field_${i}" maxlength="8" class="input-field" placeholder="${placeholderHints[i]}">`;
             inputSection.appendChild(rowDiv);
         }

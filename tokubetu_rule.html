@@ -47,7 +47,7 @@
 
     </style>
 
-    <title>ぷよクエ とくべつルール シミュレータ</title>
+    <title>ぷよクエ とくべつルール（なぞりぬりかえ）シミュレータ</title>
     <meta name="description" content="なぞり消しの代わりに指定色へぬりかえる「とくべつルール」系スキルの、最適ななぞり方を探索してダメージを計算します。">
     <meta property="og:title" content="ぷよクエ とくべつルール シミュレータ">
     <meta property="og:description" content="なぞりぬりかえの最適解を探索。">
@@ -144,7 +144,7 @@ table.sum td:first-child,table.sum th:first-child{text-align:left}
 </head>
 <body>
 
-<h1>ぷよクエ とくべつルール シミュレータ</h1>
+<h1>ぷよクエ とくべつルール（なぞりぬりかえ）シミュレータ</h1>
 
 <div class="nav-back sim-nav"><a href="index.html">← ポータルへ戻る</a></div>
 
@@ -154,7 +154,7 @@ table.sum td:first-child,table.sum th:first-child{text-align:left}
         「なぞり消しの代わりに、なぞったぷよを指定の色にぬりかえる」<strong>とくべつルール</strong>系スキル用です. なぞったぷよは消えずに指定色に変わり、<strong>そのあと4つ以上つながった所が消えて連鎖</strong>が始まります.<br>
         <strong>1. 盤面を入れる</strong>: 左の欄に直接入力するか、<strong>写真から読み込み</strong>、または<strong>Firebaseの保存枠から読込</strong>（ダメージシム・うたたねシム・解析シム・確認用・このページの保存）. NEXT と、攻撃・同時×・連鎖× も入れます.<br>
         <strong>2. 条件を決める</strong>: <strong>塗る色</strong>と<strong>最大なぞり数</strong>を選びます. なぞる形は なぞり消しと同じで、縦横斜めに全部つながっていて、2〜6行目に1つ以上含む必要があります.<br>
-        <strong>3. 探索</strong>: 「🚀 探索開始」で、複数のWorkerが山登り法でダメージが大きいなぞり方を探します（時間は秒で指定）. C言語版（tokubetu_rule.js / .wasm と、tokubetu_rule_worker.js・tokubetu_rule_sub_worker.js）が置いてあれば自動でそちらを使い、無ければ JavaScript 版で探します（画面の「エンジン」表示で確認できます）. <strong>粘り</strong>は、改善しなくなってから別の出発点に移るまでのゆさぶり回数です. 結果の上位10件から「盤面に反映」で切り替えられます.<br>
+        <strong>3. 探索</strong>: 「🚀 探索開始」で、複数のWorkerが山登り法でダメージが大きいなぞり方を探します（時間は秒で指定）. C言語版（tokubetu_rule.js / .wasm と、tokubetu_rule_worker.js・tokubetu_rule_sub_worker.js）が置いてあれば自動でそちらを使い、無ければ JavaScript 版で探します（画面の「エンジン」表示で確認できます）. <strong>再</strong>は、山登り（ゆさぶって山登りする1回）を何回やったら、新しいランダムな出発点から完全にやり直すかです（空欄は 10000、0 ならやり直しません）. 結果の上位10件から「盤面に反映」で切り替えられます.<br>
         <strong>予備12（指示欄）</strong>: 「🚀 探索開始」を押したときの動きを決めます（解析シムなどと同じ）. 空欄/それ以外＝そのまま探索. <strong>w_N</strong>＝いまの内容をこのページの枠Nへ保存. <strong>r_N</strong>＝「読み込み元」で選んだ保存先の枠Nを読込. <strong>rr_N</strong>＝「読み込み元」の枠Nを2秒ごとに見に行き、盤面の1行目が前回と変わったら読み込んで探索します（探索が終わると「✅ 完了」が出て、押すと監視を再開）.<br>
         <strong>4. 手で試す</strong>: 「塗り後の盤面」をクリック（ドラッグ可）すると、そのマスをなぞったことにして、結果とコマ送りがすぐ更新されます.<br>
         ダメージの式は ダメージシム（puyodamage）と同じです（連鎖欄＋1回まで NEXT 後の連鎖を数える・最終ブースト込み）. 探索は山登りなので、最大なぞり数が大きいほど最適解を取りこぼす可能性があります（時間を延ばす・何回か実行してください）.
@@ -170,7 +170,7 @@ table.sum td:first-child,table.sum th:first-child{text-align:left}
             <div id="fields-search">
                 <div class="frow" title="なぞるマスの最大個数"><label class="flabel" for="max-trace">なぞ数:</label><input type="text" inputmode="numeric" id="max-trace" class="ff" maxlength="2" placeholder="10" autocomplete="off"></div>
                 <div class="frow" title="探索の打ち切り時間（秒）"><label class="flabel" for="search-sec">実行時間:</label><input type="text" inputmode="numeric" id="search-sec" class="ff" maxlength="3" placeholder="30" autocomplete="off"></div>
-                <div class="frow" title="この回数だけ改善しなければ別の出発点へ移る"><label class="flabel" for="patience">粘り:</label><input type="text" inputmode="numeric" id="patience" class="ff" maxlength="6" placeholder="20" autocomplete="off"></div>
+                <div class="frow" title="山登り（ゆさぶって山登りする1回）をこの回数やったら、新しいランダムな出発点から完全にやり直す（空欄=10000 / 0=やり直さない）"><label class="flabel" for="round-climbs">再:</label><input type="text" inputmode="numeric" id="round-climbs" class="ff" maxlength="6" placeholder="10000" autocomplete="off"></div>
                 <div class="frow last-cell" title="w_N:枠Nへ保存 / r_N:枠Nを読込 / rr_N:2秒ごとに枠Nを見に行き、盤面1行目が変わったら読込して探索"><label class="flabel" for="spare12">予備12:</label><input type="text" id="spare12" class="ff" placeholder="rr_1" maxlength="8" autocomplete="off"></div>
             </div>
         </div>
@@ -401,7 +401,7 @@ function makeCtx(d) {
     return {
         orig: Int8Array.from(d.orig), plus: Uint8Array.from(d.plus), bonus: Uint8Array.from(d.bonus),
         nextC: Int8Array.from(d.nextC), nextP: Uint8Array.from(d.nextP), atk: Float64Array.from(d.atk),
-        kSame: d.kSame, kChain: d.kChain, maxChains: d.maxChains, X: d.X, N: d.N, patience: d.patience || 20,
+        kSame: d.kSame, kChain: d.kChain, maxChains: d.maxChains, X: d.X, N: d.N, roundClimbs: d.roundClimbs == null ? 10000 : d.roundClimbs,
         color: new Int8Array(48), plusb: new Uint8Array(48), del: new Uint8Array(48), cnt: new Int32Array(6), chains: 0
     };
 }
@@ -521,11 +521,11 @@ function runSearch(ctx, endTime, hooks) {
     while (!expired && performance.now() < endTime) {
         let list = randomStart(), sc = ev(list);
         let r = climb(list, sc); list = r.list; sc = r.sc; record(list, sc);
-        let best = { list: list.slice(), sc }, stall = 0;
-        while (stall < ctx.patience && !expired) {
+        let best = { list: list.slice(), sc }, climbs = 1;               // 山登りの回数（最初の出発点が1回目）
+        while (!expired && (ctx.roundClimbs <= 0 || climbs < ctx.roundClimbs)) {   // 再: この回数やったら、新しいランダムな出発点から完全にやり直す
             let cand = perturb(best.list), v = ev(cand);
-            r = climb(cand, v); cand = r.list; v = r.sc; record(cand, v);
-            if (v > best.sc + 1e-9) { best = { list: cand.slice(), sc: v }; stall = 0; } else stall++;
+            r = climb(cand, v); cand = r.list; v = r.sc; record(cand, v); climbs++;
+            if (v > best.sc + 1e-9) best = { list: cand.slice(), sc: v };
         }
     }
     hooks.progress(evals, top);
@@ -579,6 +579,12 @@ function F(i) { return document.getElementById('kf-' + i); }
 function fval(i) { const v = F(i).value.trim(); return v !== "" ? v : HINTS[i]; }
 function fnum(i, def) { const v = parseFloat(fval(i)); return isNaN(v) ? def : v; }
 function maxTrace() { const v = parseInt(document.getElementById('max-trace').value); return isNaN(v) ? 10 : Math.max(1, Math.min(48, v)); }
+function roundClimbsVal() {                            // 再: 空欄は 10000、0 ならやり直さない
+    const t = (document.getElementById('round-climbs').value || '').trim();
+    if (t === '') return 10000;
+    const v = parseInt(t);
+    return isNaN(v) ? 10000 : Math.max(0, Math.min(1000000, v));
+}
 function numOr(id, def, lo, hi) { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? def : Math.max(lo, Math.min(hi, v)); }
 
 function readInput() {
@@ -897,11 +903,11 @@ function updateEngineLabel(t) {
     const el = document.getElementById('engine-label');
     if (el) el.textContent = t;
 }
-function buildCsv(inp, seconds, patience, seed) {
+function buildCsv(inp, seconds, roundClimbs, seed) {
     const rows = a => [0, 1, 2, 3, 4, 5].map(r => a.slice(r * 8, r * 8 + 8).join('')).join(',');
     return [rows(inp.orig), rows(inp.plus), rows(inp.bonus), inp.nextC.join(''), inp.nextP.join(''), inp.maxChains,
         inp.atk[1], inp.atk[2], inp.atk[3], inp.atk[4], inp.atk[5], inp.kSame, inp.kChain,
-        paintColor, maxTrace(), seconds, patience, seed >>> 0, 0].join(',');
+        paintColor, maxTrace(), seconds, roundClimbs, seed >>> 0, 0].join(',');
 }
 let engineName = '';
 /* 「🚀 探索開始」: 予備12 の指示（w_N / r_N / rr_N）に従う。解析シム・うたたね・ダメージシムと同じ動き */
@@ -975,7 +981,7 @@ function finishProgressBar() {
 function runNormalSearch() {
     if (searching) return;
     const inp = readInput();
-    const job = { inp, seconds: numOr('search-sec', 30, 1, 600), patience: Math.round(numOr('patience', 20, 1, 100000)), X: paintColor, N: maxTrace() };
+    const job = { inp, seconds: numOr('search-sec', 30, 1, 600), roundClimbs: roundClimbsVal(), X: paintColor, N: maxTrace() };
     cands = []; searching = true; poolBest = new Map(); poolPer = []; wrSel = -1; wrSig = ''; renderWorkerResults();
     document.getElementById('best-score-display').textContent = '探索中'; showProgressBar(job.seconds);
     document.getElementById('search-btn').textContent = '⏹ 停止';
@@ -1005,7 +1011,7 @@ function launchPool(kind, job) {
         myPool.forEach((wk, w) => {
             const seed = (Date.now() ^ (w * 7919)) >>> 0;
             wk.postMessage({
-                id: w, seed, seconds: job.seconds, patience: job.patience, csv: buildCsv(job.inp, job.seconds, job.patience, seed),
+                id: w, seed, seconds: job.seconds, roundClimbs: job.roundClimbs, csv: buildCsv(job.inp, job.seconds, job.roundClimbs, seed),
                 orig: job.inp.orig, plus: job.inp.plus, bonus: job.inp.bonus, nextC: job.inp.nextC, nextP: job.inp.nextP, atk: job.inp.atk,
                 kSame: job.inp.kSame, kChain: job.inp.kChain, maxChains: job.inp.maxChains, X: job.X, N: job.N
             });

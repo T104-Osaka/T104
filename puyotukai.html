@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/board.css">
     
-    <title>ぷよクエ ぬりかえ シミュレータ - ぬりかえ・なぞり消し最適解の自動計算</title>
+    <title>ぷよクエ解析シミュレータ - ぬりかえ・なぞり消し最適解の自動計算</title>
     <meta name="description" content="ぷよクエの盤面を解析し、ぬりかえの局所最適解を算出します。ぷよつかい大会の攻略に。">
     <meta name="keywords" content="ぷよクエ解析シミュレータ,ぷよつかい大会,ぷよクエ,シミュレータ,ぬりかえ,ぷよぷよクエスト,計算,スコア,解析,なぞり消し,連鎖,最適解">
     
@@ -86,7 +86,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
 </head>
 <body>
 
-    <h1> ぷよクエ ぬりかえ シミュレータ </h1>
+    <h1> ぷよクエ解析シミュレータ </h1>
 
     <div class="nav-back sim-nav">
     <a href="index.html">← ポータルへ戻る</a>
@@ -148,7 +148,9 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                 <strong>補足. 予備1によるBE固定（拡張機能）</strong><br>
                 &emsp;「BE保」に <strong>1</strong> を入力して画像解析すると、盤面のぷよ色のみを最新に更新し、ボーナスエリアの配置は現在の設定のまま強制ロック（キープ）. 同じ編成でステージ周回する際に適宜使用.（通常時は 0 または空欄で自動解析.）<br><br>
                     <strong>補足. 山登り法（「山登り」欄）</strong><br>
-                    &emsp;0 または空欄なら従来のランダム探索. 1以上の数字を入れると山登り法になり、その回数だけ改善しなければ別の出発点へ移る（目安 300）. 山登り法では、探索後に Worker ごとの 5 秒ごとの最高点の推移が表示され、コピーもできる.<br><br>
+                    &emsp;0 または空欄なら従来のランダム探索. 1以上の数字を入れると山登り法になり、その回数だけ改善しなければ別の出発点へ移る（目安 300）. 山登り法では、探索後に Worker ごとの 5 秒ごとの最高点の推移が表示され、コピーもできる.<br>
+                    &emsp;・<strong>再</strong>: 山登り（出発点から、改善が止まって別の出発点へ移るまでの1回）を何回やったら、最高点も捨てて完全にやり直すか. 空欄は 10000、<strong>0</strong> ならやり直さない. 小さいほど、こまめにやり直す.<br><br>
+
                     <strong>補足. 予備12の指示（保存・読込・自動読込）</strong><br>
                     &emsp;<strong>w_N</strong>: 現在の入力をスロットNへ保存.　<strong>r_N</strong>: スロットNを読み込む（予備12は書き換えない）.<br>
                     &emsp;<strong>rr_N</strong>: 「探索開始」で監視を始め、2秒ごとにスロットNを見に行く. 盤面1行目（色行1）が前回と変わっていたら、r_N と同じ読み込みをして探索する. 探索が終わると「予備欄を表示」の横に「完了」ボタンが出て、その間は見に行かない. 「完了」を押すと監視を再開する.
@@ -278,15 +280,15 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         "+行 1:", "+行 2:", "+行 3:", "+行 4:", "+行 5:", "+行 6:", 
         "BE行 1:", "BE行 2:", "BE行 3:", "BE行 4:", "BE行 5:", "BE行 6:", 
         "N盤面:", "N+:", "塗 a:", "塗 b:", "実行時間:", "探索深度:", 
-        "BE保:", "連鎖:", "山登り:", "予備4:", "予備5:", "予備6:", 
+        "BE保:", "連鎖:", "山登り:", "再:", "予備5:", "予備6:", 
         "予備7:", "予備8:", "予備9:", "予備10:", "予備11:", "予備12:"
     ];
     const placeholderHints = [
-        "13121232", "25241231", "21545231", "45512452", "44132442", "35545511", 
-        "10001001", "01100111", "01011101", "11011011", "11110011", "01111011", 
-        "00000000", "10001100", "11001010", "01000111", "01101011", "00110110", 
-        "11111111", "11111111", "12", "12", "3", "5", 
-        "0", "3", "400", "0", "0", "0", 
+        "13121232", "25241231", "21545231", "45512452", "44132442", "35545511",
+        "10001001", "01100111", "01011101", "11011011", "11110011", "01111011",
+        "00000000", "10001100", "11001010", "01000111", "01101011", "00110110",
+        "11111111", "11111111", "12", "12", "3", "5",
+        "0", "3", "400", "10000", "0", "0",
         "0", "0", "0", "0", "0", "rr_1"
     ];
 
@@ -511,7 +513,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         const inputSection = document.getElementById('input-section');
         for (let i = 0; i < 36; i++) {
             const rowDiv = document.createElement('div');
-            rowDiv.className = 'input-row' + ((i >= 27 && i <= 34) ? ' spare' : '');
+            rowDiv.className = 'input-row' + ((i >= 28 && i <= 34) ? ' spare' : '');
             rowDiv.innerHTML = `<label class="input-label" for="input-field-${i}">${inputLabels[i]}</label><input type="text" id="input-field-${i}" name="input_field_${i}" maxlength="8" class="input-field" placeholder="${placeholderHints[i]}">`;
             inputSection.appendChild(rowDiv);
         }

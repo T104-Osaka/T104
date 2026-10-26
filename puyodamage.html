@@ -145,6 +145,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                 <strong>5. 演算時間と探索の方式</strong><br>
                 &emsp;・<strong>実行時間</strong>: 探索の打ち切り時間(s).<br>
                 &emsp;・<strong>山登り</strong>: 空欄のときは 400 で山登り法（塗るマス・なぞるマスを1つずつ変えてダメージを上げ、その回数だけ改善しなければ別の出発点へ）. <strong>0</strong> を入れると完全ランダム探索（なぞ=4以上のときは、完全ランダムな塗り替えごとに、なぞり方を1000パターン山登り）.<br>
+                &emsp;・<strong>再</strong>: 山登り（出発点から、改善が止まって別の出発点へ移るまでの1回）を何回やったら、最高点も捨てて完全にやり直すか. 空欄は 10000、<strong>0</strong> ならやり直さない. 小さいほど、こまめにやり直す.<br>
                 &emsp;・<strong>探索深度</strong>: 完全ランダムのとき、塗る個数を上限から何個まで減らして試すか.<br>
                 &emsp;・<strong>連鎖</strong>: NEXT落下後に数える連鎖の上限（入力値＋1回）.<br><br>
 
@@ -285,7 +286,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         "N盤面:", "N+:", "塗1:", "塗2:", "実行時間:", "探索深度:",
         "BE保:", "連鎖:", "山登り:", "赤攻:", "青攻:", "緑攻:",
         "黄攻:", "紫攻:", "なぞ:", "同時×:", "連鎖×:", "塗替%:",
-        "なぞ%:", "両方%:", "先塗り:", "予備14:", "予備15:", "予備16:",
+        "なぞ%:", "両方%:", "先塗り:", "再:", "予備15:", "予備16:",
         "予備17:", "予備18:", "予備19:", "予備20:", "予備21:", "予備22:",
         "予備23:", "予備24:", "予備25:", "予備26:", "予備27:", "予備12:"
     ];
@@ -296,7 +297,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         "11111111", "11111111", "12", "12", "10", "18",
         "0", "2", "400", "1000", "1000", "1000",
         "1000", "1000", "5", "1", "1", "55",
-        "35", "10", "0", "0", "0", "0",
+        "35", "10", "0", "10000", "0", "0",
         "0", "0", "0", "0", "0", "0",
         "0", "0", "0", "0", "0", "rr_1"
     ];
@@ -574,7 +575,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         const inputSection = document.getElementById('input-section');
         for (let i = 0; i < 54; i++) {
             const rowDiv = document.createElement('div');
-            rowDiv.className = 'input-row' + ((i >= 38 && i <= 52) ? ' spare' : '') + (i === 53 ? ' last-cell' : '') + ((i === 37 || i === 38) ? ' calc' : '');
+            rowDiv.className = 'input-row' + ((i >= 38 && i <= 52 && i !== 39) ? ' spare' : '') + (i === 53 ? ' last-cell' : '') + ((i === 37 || i === 38) ? ' calc' : '');
             rowDiv.innerHTML = `<label class="input-label" for="input-field-${i}">${inputLabels[i]}</label><input type="text" id="input-field-${i}" name="input_field_${i}" maxlength="8" class="input-field" placeholder="${placeholderHints[i]}"${(i === 37 || i === 38) ? ' readonly tabindex="-1"' : ''}>`;
             inputSection.appendChild(rowDiv);
         }
