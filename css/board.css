@@ -1,5 +1,5 @@
 /* css/board.css — 盤面（8列×6行）の共通部品
-   .bd=盤面 / .cell=1マス / .pz=ぷよの丸 / 色は .pz-r .pz-b .pz-g .pz-y .pz-p .pz-h
+   .bd=盤面 / .cell=1マス / .pz=ぷよの丸 / 色は .pz-r .pz-b .pz-g .pz-y .pz-p .pz-h / 特別 .pz-w=プリズムボール(白) .pz-o=お邪魔ぷよ .pz-k=かたぷよ
    マスの印: .bo=ボーナスエリア(オレンジ枠) .tr=なぞり位置(水色枠) .hit=消えたマス(白い点線枠) */
 .bd{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;max-width:360px}
 .cell{aspect-ratio:1;position:relative;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:6px;background:var(--card);font-size:11px;color:var(--mut);cursor:pointer;user-select:none}
@@ -10,3 +10,4 @@
 .pz{width:82%;height:82%;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px}
 .pz.t{outline:3px solid var(--fg);outline-offset:1px}
 .pz-r{background:var(--p-r)}.pz-b{background:var(--p-b)}.pz-g{background:var(--p-g)}.pz-y{background:var(--p-y)}.pz-p{background:var(--p-p)}.pz-h{background:var(--p-h)}
+.pz-w{background:var(--p-w);color:#555;text-shadow:none}.pz-o{background:var(--p-o)}.pz-k{background:var(--p-k)}   /* プリズムは中に「◇」、お邪魔・かたぷよは文字なし */
