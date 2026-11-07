@@ -117,7 +117,10 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
 
                 <strong>1. 盤面の入力</strong><br>
                 &emsp;全て半角で入力. 以降の項目も同様.<br>
-                &emsp;・<strong>色情報</strong>: 1:赤, 2:青, 3:緑, 4:黄, 5:紫, 0:ハート で各セルを定義.<br>
+                &emsp;・<strong>色情報</strong>: 1:赤, 2:青, 3:緑, 4:黄, 5:紫, 0:ハート, 6:プリズムボール, 7:お邪魔ぷよ, 8:かたぷよ で各セルを定義.<br>
+                &emsp;&emsp;<strong>6 プリズムボール</strong>: 塗れません. なぞって消せます（なぞって消しても効果なし）. 消える塊に隣接すると一緒に消え、1個につき「全色の攻撃力の合計×3」を、連鎖・同時消し・分離の補正なしで加えます（同時消し数には数えず、ブーストの数には数えます）.<br>
+                &emsp;&emsp;<strong>7 お邪魔ぷよ</strong>: 塗れます. なぞり消しできません. ハートと同じく、消える塊に隣接すると消えます（ブーストの数には数えます）.<br>
+                &emsp;&emsp;<strong>8 かたぷよ</strong>: 塗れます. なぞり消しできません. 消える塊に隣接した連鎖では消えず、お邪魔ぷよ(7)に変わります（何方向から隣接していても1回だけ）.<br>
                 &emsp;・<strong>プラス状態</strong>: プラスぷよを 1、通常状態を 0 と定義.<br>
                 &emsp;・<strong>ボーナスエリア（BE）</strong>: ボーナスエリアを 1、それ以外を 0 と定義. ここで消えた数が多いほど最終ダメージが上がる.<br><br>
 
@@ -301,6 +304,15 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         "0", "0", "0", "0", "0", "0",
         "0", "0", "0", "0", "0", "rr_1"
     ];
+
+    // 実際の色 0=ハート 1〜5=赤青緑黄紫 6=プリズムボール 7=お邪魔ぷよ 8=かたぷよ（0は盤面ではハート色で別に描く）
+    // 色は共通CSS（css/base.css の --p-r など）から読む。CSSを変えれば、ここも変わる
+    const cssColor = (v, fb) => (getComputedStyle(document.documentElement).getPropertyValue(v).trim() || fb);
+    const PUYO_COLORS = ["transparent", cssColor('--p-r', '#e5484d'), cssColor('--p-b', '#3b82f6'), cssColor('--p-g', '#22c55e'), cssColor('--p-y', '#eab308'), cssColor('--p-p', '#a855f7'),
+                         cssColor('--p-w', '#ffffff'), cssColor('--p-o', '#9aa0a6'), cssColor('--p-k', '#4b5057')];
+    const PUYO_COLORS_H = [cssColor('--p-h', '#f9a8d4')].concat(PUYO_COLORS.slice(1));   // 0=ハートも入れた版
+    const SPECIAL_MARK = { 6: "◇", 7: "", 8: "" };      // 7・8は色だけ（文字なし）
+    const SPECIAL_NAME = { 6: "プリズム", 7: "お邪魔", 8: "かたぷよ" };
 
     const puyoWorker = new Worker('puyodamage_worker.js');
 
@@ -514,7 +526,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         const a = parseInt(document.getElementById('target-a').value) || 1;
         let b = parseInt(document.getElementById('target-b').value) || 2;   // 塗る色2（なぞ=0 のときは使わない）
         if (b === a) b = (a === 1) ? 2 : 1;                                 // 色1と同じなら、違う色を自動で選ぶ
-        let map = [0, 1, 2, 3, 4, 5];
+        let map = [0, 1, 2, 3, 4, 5, 6, 7, 8];                            // 6〜8（プリズム・お邪魔・かたぷよ）は入れ替えない
 
         let temp1 = map[1];
         map[1] = map[a];
@@ -536,7 +548,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
     }
     function syncGuideText() {
         const colorNames = ["ハート", "赤", "青", "緑", "黄", "紫"];
-        const colorCodes = ["#ffdae9", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
+        const colorCodes = PUYO_COLORS_H;
         const aVal = document.getElementById('target-a').value;
         const bVal = document.getElementById('target-b').value;
 
@@ -627,10 +639,9 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
     function refreshNextRow() {
         const f = document.querySelectorAll('.input-field');
         const cs = (f[18].value || placeholderHints[18]).padStart(8, '1'), ps = (f[19].value || placeholderHints[19]).padStart(8, '0');
-        const colors = ["transparent", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
         for (let i = 0; i < 8; i++) {
             const cell = document.getElementById(`next-cell-${i}`);
-            if (cell) { cell.style.backgroundColor = colors[parseInt(cs[i]) || 0]; cell.textContent = ps[i] === "1" ? "+" : ""; }
+            if (cell) { const ci = parseInt(cs[i]) || 0; cell.style.backgroundColor = PUYO_COLORS[ci]; cell.textContent = ci >= 6 ? SPECIAL_MARK[ci] : (ps[i] === "1" ? "+" : ""); }
         }
     }
     // 盤面のマスに印(クラス)を付ける: tr=なぞり位置(水色枠) hit=消えたマス(点線枠)
@@ -812,9 +823,8 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                 const cell = document.getElementById(`next-cell-${i}`);
                 if (cell) {
                     const colorIdx = parseInt(nextColorsStr[i]) || 0;
-                    const colors = ["transparent", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
-                    cell.style.backgroundColor = colors[colorIdx];
-                    cell.textContent = nextPlusStr[i] === "1" ? "+" : "";
+                    cell.style.backgroundColor = PUYO_COLORS[colorIdx];
+                    cell.textContent = colorIdx >= 6 ? SPECIAL_MARK[colorIdx] : (nextPlusStr[i] === "1" ? "+" : "");
                 }
             }
 
@@ -826,7 +836,8 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                 if ((idx >= 0 && idx <= 5) || idx === 18) {
                     return val.split('').map(char => {
                         const num = parseInt(char);
-                        return logicMap.indexOf(num);
+                        const k = logicMap.indexOf(num);
+                        return k < 0 ? 0 : k;
                     }).join('');
                 }
                 return val;
@@ -883,12 +894,20 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         const pz = cell.firstElementChild;
         const logicMap = getLogicMap();
         const originalColor = (colorIndex === -1) ? -1 : logicMap[colorIndex];
-        const colors = ["transparent", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
+        const colors = PUYO_COLORS;
 
         if (originalColor === -1) { pz.style.backgroundColor = "transparent"; pz.textContent = ""; return; }
+        if (originalColor >= 6) {                      // プリズムボール・お邪魔ぷよ・かたぷよ
+            pz.style.backgroundColor = colors[originalColor];
+            pz.textContent = SPECIAL_MARK[originalColor] || "";
+            pz.style.color = originalColor === 6 ? "#555" : "";
+            pz.style.textShadow = originalColor === 6 ? "none" : "";
+            return;
+        }
+        pz.style.color = ""; pz.style.textShadow = "";
 
         if (originalColor === 0 && (gridId === "original-board" || gridId === "output-board" || gridId === "playback-board")) {
-            pz.style.backgroundColor = "#ffdae9";
+            pz.style.backgroundColor = PUYO_COLORS_H[0];
         } else {
             pz.style.backgroundColor = colors[originalColor] || "rgba(255,255,255,0.05)";
         }
@@ -899,7 +918,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         const logicMap = getLogicMap();
         const originalColor = logicMap[colorIndex];
 
-        const colorCodes = ["#ccc", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
+        const colorCodes = ["#ccc"].concat(PUYO_COLORS.slice(1));
         const target = document.getElementById('trace-result');
         const colorCode = colorCodes[originalColor] || "#fff";
         target.innerHTML = `${row} 行 ${col} 列 <span style="color: ${colorCode}; margin-left: 12px; font-size: 1.2em; text-shadow: 0 0 10px ${colorCode};">●</span>`;
@@ -917,7 +936,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         dot.style.cssText = `color:${col};margin-left:12px;font-size:1.2em;text-shadow:0 0 10px ${col}`;
         box.appendChild(dot);
     }
-    const COLORS_UI = ["#ffdae9", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
+    const COLORS_UI = PUYO_COLORS_H;
     function describeTrace(cells) {
         if (!cells.length) return 'なぞり消しなし（塗り替えで連鎖開始）';
         const sorted = [...cells].sort((a, b) => a - b);
@@ -949,7 +968,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         // 各列（0〜7列）のNEXTキュー（各列1個ずつ）
         let nextColumns = [];
         for (let c = 0; c < 8; c++) {
-            const rawCol = parseInt(nextColorsStr[c]) || 1;
+            const rawCol = isNaN(parseInt(nextColorsStr[c])) ? 1 : parseInt(nextColorsStr[c]);   // 0=ハートもそのまま（エンジンと同じ）
             const slotCol = logicMap.indexOf(rawCol);
             const isPl = parseInt(nextPlusStr[c]) || 0;
             nextColumns.push([{ color: slotCol !== -1 ? slotCol : rawCol, plus: isPl }]);
@@ -968,44 +987,51 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         const starSet = new Set(); // 非プラス×BE内で消えるぷよの初期位置
         const dmg = { raw: 0, boost: 0 };   // 全連鎖の合計ダメージ(ブースト前) / ブーストエリアで消えた数
         // 1連鎖ぶんを消してダメージを計算し、コマ(step)を返す
-        function eraseStep(del, k) {
+        function eraseStep(del, k, kat) {
             const groups = countGroups(currentBoard);
-            const cnt = [0,0,0,0,0,0];      // 実際の色ごとの消えた数（♡含む・プラスは1個）
-            const nC = [0,0,0,0,0,0];       // 同時消し数（♡は数えない・プラスは2個）
-            let boostAdd = 0;
+            const cnt = new Array(9).fill(0);   // 実際の色ごとの消えた数（♡・プリズム・お邪魔も含む・プラスは1個）
+            const nC = new Array(9).fill(0);    // 同時消し数（色1〜5だけ・プラスは2個。♡・プリズム・お邪魔は数えない）
+            let boostAdd = 0, prism = 0;
             for (let i = 0; i < 48; i++) {
                 if (!del[i]) continue;
                 const p = currentBoard[i].plus, b = fixedBonusArray[i];
                 const act = logicMap[currentBoard[i].color], w = p ? 2 : 1;
                 cnt[act]++;
-                if (act >= 1) nC[act] += w;
-                if (b) boostAdd += w;                       // ブーストの数には♡も数える
+                if (act >= 1 && act <= 5) nC[act] += w;
+                if (act === 6) prism++;
+                if (b) boostAdd += w;                       // ブーストの数には♡・プリズム・お邪魔も数える
                 if (!p && b && currentBoard[i].id >= 0) starSet.add(currentBoard[i].id);
                 currentBoard[i].color = -1; currentBoard[i].plus = 0; currentBoard[i].id = -1;
             }
+            (kat || []).forEach(i => { currentBoard[i].color = 7; });   // かたぷよ → お邪魔ぷよ（この連鎖では消えない）
             const chainMult = 1 + chainCoef(k) * mults.chain;
-            const perColor = [0,0,0,0,0,0], sameMult = [0,0,0,0,0,0];
+            const perColor = new Array(9).fill(0), sameMult = new Array(9).fill(0), ownPts = new Array(9).fill(0), prismShare = new Array(9).fill(0);
             let stepDmg = 0;
             for (let slot = 1; slot <= 5; slot++) {
                 const act = logicMap[slot];
                 if (nC[act] > 0) {
                     sameMult[act] = 1 + (nC[act] - 4) * 0.15 * mults.same;
-                    perColor[act] = coefInternal[slot] * groups * sameMult[act] * chainMult;
-                    stepDmg += perColor[act];
+                    ownPts[act] = coefInternal[slot] * groups * sameMult[act] * chainMult;
                 }
+                prismShare[act] = 3 * prism * coefInternal[slot];   // プリズムボール: 各色の攻撃力×3（補正なし）を、その色に配分する
+                perColor[act] = ownPts[act] + prismShare[act];
+                stepDmg += perColor[act];
             }
             dmg.raw += stepDmg; dmg.boost += boostAdd;
             const up = Math.min(dmg.boost * 0.04, 2.0);
             totalScore = dmg.raw * (1 + up);
             return {
-                desc: `第 ${k} 連鎖消滅 (分離${groups}・連鎖×${fm(chainMult)}・+${fmt(stepDmg)})`,
+                desc: stepDesc(k, groups, chainMult, stepDmg, prism),
                 hit: del.map((v, i) => v ? i : -1).filter(i => i >= 0),
                 erased: cnt, erasedPts: perColor,
-                info: { k, groups, chainMult, nC, sameMult, boostAdd, stepDmg },
+                info: { k, groups, chainMult, nC, sameMult, boostAdd, stepDmg, prism, ownPts, prismShare },
                 chain: k, score: totalScore,
                 board: JSON.parse(JSON.stringify(currentBoard)),
                 next: JSON.parse(JSON.stringify(nextColumns))
             };
+        }
+        function stepDesc(k, groups, chainMult, stepDmg, prism) {
+            return `第 ${k} 連鎖消滅 (分離${groups}・連鎖×${fm(chainMult)}${prism ? `・プリズム${prism}個` : ''}・+${fmt(stepDmg)})`;
         }
 
         playbackSteps = [];
@@ -1054,7 +1080,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
             if (toDelete.filter(v => v === 1).length === 0) break;
 
             chainCount++;
-            playbackSteps.push(eraseStep(toDelete, chainCount));
+            playbackSteps.push(eraseStep(toDelete, chainCount, toDelete.kat));
 
             if (applyGravity(currentBoard)) {
                 playbackSteps.push({
@@ -1101,7 +1127,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
 
                 chainCount++;
                 postNextChains++;
-                playbackSteps.push(eraseStep(finalDelete, chainCount));
+                playbackSteps.push(eraseStep(finalDelete, chainCount, finalDelete.kat));
 
                 if (applyGravity(currentBoard)) {
                     playbackSteps.push({
@@ -1123,16 +1149,16 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                   rawCum += st.info.stepDmg;
                   st.info.stepDmg *= finalMult;
                   st.erasedPts = st.erasedPts.map(v => v * finalMult);
-                  st.desc = `第 ${st.info.k} 連鎖消滅 (分離${st.info.groups}・連鎖×${fm(st.info.chainMult)}・+${fmt(st.info.stepDmg)})`;
+                  st.desc = stepDesc(st.info.k, st.info.groups, st.info.chainMult, st.info.stepDmg, st.info.prism);
               }
               st.score = rawCum * finalMult;
               st.finalMult = finalMult;
           }); }
 
         // 色ごとの累計（各コマに持たせる）
-        { const cc = [0,0,0,0,0,0], cp = [0,0,0,0,0,0]; let boostRun = 0;
+        { const cc = new Array(9).fill(0), cp = new Array(9).fill(0); let boostRun = 0;
           playbackSteps.forEach(st => {
-              if (st.erased) for (let k = 0; k < 6; k++) { cc[k] += st.erased[k]; cp[k] += st.erasedPts[k]; }
+              if (st.erased) for (let k = 0; k < 9; k++) { cc[k] += st.erased[k]; cp[k] += st.erasedPts[k]; }
               if (st.info) boostRun += st.info.boostAdd;
               st.cumErased = cc.slice(); st.cumPts = cp.slice(); st.cumBoost = boostRun;
           }); }
@@ -1228,10 +1254,12 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
             }
         }
 
-        // 2. 消える色ぷよに隣接するハートぷよ(0)の巻き込み
+        // 2. 消える色ぷよに隣接するハート(0)・プリズムボール(6)・お邪魔ぷよ(7)の巻き込み。かたぷよ(8)は消えずにお邪魔ぷよになる（toDelete.kat）
+        toDelete.kat = [];
         if (foundChain) {
+            const katSet = new Set();
             for (let i = 0; i < 48; i++) {
-                if (toDelete[i] && board[i].color !== 0) {
+                if (toDelete[i] && board[i].color >= 1 && board[i].color <= 5) {
                     const r = Math.floor(i / 8);
                     const c = i % 8;
 
@@ -1243,12 +1271,14 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                     ];
 
                     neighbors.forEach(nIdx => {
-                        if (nIdx !== -1 && board[nIdx].color === 0) {
-                            toDelete[nIdx] = 1;
-                        }
+                        if (nIdx === -1) return;
+                        const cc = board[nIdx].color;
+                        if (cc === 0 || cc === 6 || cc === 7) toDelete[nIdx] = 1;
+                        else if (cc === 8) katSet.add(nIdx);
                     });
                 }
             }
+            toDelete.kat = [...katSet];
         }
 
         return toDelete;
@@ -1274,14 +1304,19 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
 
         // 色ごとの消去数・ダメージ（このコマ / 累計）と、分離数・倍率・ブースト
         { const names = ["♡","赤","青","緑","黄","紫"];
-          const cols = ["#ffdae9","#ff3e3e","#4da3ff","#3eff3e","#ffeb3e","#ae81ff"];
+          const cols = PUYO_COLORS_H;
           const box = document.getElementById('playback-erase');
           const inf = step.info, cb = step.cumBoost || 0;
           let html = `<div class="erase-sum">${inf ? `第${inf.k}連鎖: 分離数 <b>${inf.groups}</b> ・連鎖倍率 <b>×${fm(inf.chainMult)}</b><br>` : '&nbsp;<br>'}ブースト <b>${cb}</b>個 → <b>+${Math.min(cb * 4, 200)}%</b><br><small>ダメージは最終ブースト ×${fm(step.finalMult || 1)} 込み</small></div>`;
           html += '<div class="erase-grid">' + [1,2,3,4,5,0].map(k => {
               const now = step.erased ? step.erased[k] : 0, cum = step.cumErased ? step.cumErased[k] : 0;
               const pts = step.cumPts ? step.cumPts[k] : 0;
-              const sub = (inf && k >= 1 && inf.nC[k] > 0) ? `<br><small>同時${inf.nC[k]}×${fm(inf.sameMult[k])}→+${fmt(step.erasedPts[k])}</small>` : '<br><small>&nbsp;</small>';
+              let sub = '<br><small>&nbsp;</small>';
+              if (inf && k >= 1 && k <= 5) {
+                  const own = inf.nC[k] > 0 ? `同時${inf.nC[k]}×${fm(inf.sameMult[k])}→+${fmt(inf.ownPts[k])}` : '';
+                  const pz = inf.prismShare[k] > 0 ? `プリズム+${fmt(inf.prismShare[k])}` : '';
+                  if (own || pz) sub = `<br><small>${[own, pz].filter(Boolean).join(' ')}</small>`;
+              }
               const line2 = k === 0 ? '<small>同時消し外</small>' : `<small>${fmt(pts)}</small>`;
               return `<div class="erase-chip${now > 0 ? ' hot' : ''}${cum === 0 ? ' zero' : ''}"><span class="erase-dot" style="background:${cols[k]}"></span><span>${names[k]} 計<b>${cum}</b>個${now > 0 ? ` <span class="erase-now">(+${now})</span>` : ''}<br>${line2}${sub}</span></div>`;
           }).join('') + '</div>';
@@ -1299,7 +1334,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
 
         // NEXTぷよ残数描画
         const logicMap = getLogicMap();
-        const colors = ["transparent", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
+        const colors = PUYO_COLORS;
         for (let c = 0; c < 8; c++) {
             const cell = document.getElementById(`playback-next-cell-${c}`);
             if (cell) {
@@ -1307,7 +1342,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                     const item = step.next[c][0];
                     const origCol = logicMap[item.color];
                     cell.style.backgroundColor = colors[origCol] || "transparent";
-                    cell.textContent = item.plus ? "+" : "";
+                    cell.textContent = origCol >= 6 ? SPECIAL_MARK[origCol] : (item.plus ? "+" : "");
                 } else {
                     cell.style.backgroundColor = "transparent";
                     cell.textContent = "";
@@ -1679,14 +1714,14 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         }
         
         const nextColorsStr = updatedInputs[18].value.padStart(8, '0');
-        const colors = ["#ffdae9", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
+        const colors = PUYO_COLORS_H;
         
         for (let i = 0; i < 8; i++) {
             const cell = document.getElementById(`next-cell-${i}`);
             if (cell) {
                 const colorIdx = parseInt(nextColorsStr[i]) || 0;
                 cell.style.backgroundColor = colors[colorIdx];
-                cell.textContent = ""; 
+                cell.textContent = colorIdx >= 6 ? SPECIAL_MARK[colorIdx] : ""; 
             }
         }
     }
