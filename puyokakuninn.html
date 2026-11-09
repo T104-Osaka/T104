@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="news.css">
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/board.css">
     <style>
@@ -32,9 +33,9 @@
 body{max-width:none;margin:0;padding:16px;line-height:1.35;min-height:100vh}
 h1{color:var(--acc);font-size:1.6em;text-align:center;margin:6px 0 14px}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;box-sizing:border-box}
-.nav-back{max-width:1280px;margin:0 auto 12px;width:95%}
-.nav-back a{font-weight:700;font-size:.95em}
-.nav-back a:hover{text-decoration:underline}
+.nav-back.sim-nav{max-width:1280px;margin:0 auto 15px;width:95%}
+.nav-back.sim-nav a{font-weight:700;font-size:.95em}
+.nav-back.sim-nav a:hover{text-decoration:underline}
 .usage-section{max-width:1280px;width:95%;margin:0 auto 16px;padding:12px 15px;border-left:6px solid var(--acc);font-size:.85em}
 .usage-head{cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:700}
 #usage-icon{transition:transform .3s;display:inline-block}
@@ -122,7 +123,7 @@ table.sum td:first-child,table.sum th:first-child{text-align:left}
 
 <h1>ぷよクエ ぬりかえ確認シミュレータ</h1>
 
-<div class="nav-back"><a href="index.html">← ポータルへ戻る</a></div>
+<div class="nav-back sim-nav"><a href="index.html">← ポータルへ戻る</a></div>
 
 <div class="panel usage-section">
     <div class="usage-head" onclick="toggleUsage()"><span>💡 使い方（クリックで展開/格納）</span><span id="usage-icon">▼</span></div>
@@ -132,6 +133,7 @@ table.sum td:first-child,table.sum th:first-child{text-align:left}
         <strong>2. 塗る</strong>: 上の色ボタンを選んで、<strong>「塗り替え後」盤面のぷよをクリック</strong>（ドラッグでまとめて塗れます）. 「元に戻す」を選んでクリックすると、そのマスの塗りが消えます. 塗ったマスは白黒の輪で印が付きます. 数字キー 0〜5 で色（0=♡）、E で元に戻す、T でなぞりを選べます.<br>
         <strong>3. なぞり消し</strong>: 「✋ なぞり」を選んでマスをクリック（ドラッグ可）すると、なぞるマスに ✕ が付きます. <strong>「なぞり消し: ON/OFF」</strong>ボタンで、なぞりを使う／使わないを切り替えられます（OFF のときは選んだマスは残したまま無視されます）. なぞるマスは縦横斜めに全部つながっていて、2〜6行目に1つ以上含む必要があります（満たさないと警告が出ます）.<br>
         <strong>4. 結果</strong>: 下に最終ダメージ、連鎖数、<strong>消えた個数（ボーナスエリア3倍なし／あり）</strong>が出ます. 個数はプラスを2個分で数え、BE3倍ありは「通常1・プラス2・BE3・プラスBE6」（解析シムの点数と同じ）です. なぞったぷよは数えません. コマ送りで1連鎖ずつ確認できます.<br>
+        <strong>色6〜8</strong>（盤面・NEXTの欄に入力）: 6=プリズムボール（塗れない／なぞり消しできる／消える塊の隣で消え、1個につき全色の攻撃力の合計×3を補正なしで加算し、各色に配分して表示／同時消し数には数えない）、7=お邪魔ぷよ（塗れる／なぞれない／♡と同じく隣で消える）、8=かたぷよ（塗れる／なぞれない／隣で消えず7になる）. 塗った色や、なぞれない7・8の扱いは puyodamage と同じです.<br>
         ダメージの式は ダメージシム（puyodamage）と同じです. 塗り替え後に最初から4つ以上つながっていると、なぞり消しONのときは「塗った時点で消える（暴発）」として警告します.
     </div></div>
 </div>
@@ -250,8 +252,20 @@ try { firebase.initializeApp(firebaseConfig); db = firebase.database(); db.goOnl
 /* ==========================================================================
    定数
    ========================================================================== */
-const COLORS = ["#ffdae9", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
-const NAMES  = ["♡", "赤", "青", "緑", "黄", "紫"];
+// 色は共通CSS（css/base.css の --p-r など）から読む。0=♡ 1〜5=赤青緑黄紫 6=プリズムボール 7=お邪魔ぷよ 8=かたぷよ
+const cssColor = (v, fb) => (getComputedStyle(document.documentElement).getPropertyValue(v).trim() || fb);
+const COLORS = [cssColor('--p-h', '#f9a8d4'), cssColor('--p-r', '#e5484d'), cssColor('--p-b', '#3b82f6'), cssColor('--p-g', '#22c55e'), cssColor('--p-y', '#eab308'), cssColor('--p-p', '#a855f7'),
+                cssColor('--p-w', '#ffffff'), cssColor('--p-o', '#9aa0a6'), cssColor('--p-k', '#4b5057')];
+const NAMES  = ["♡", "赤", "青", "緑", "黄", "紫", "プリズム", "お邪魔", "かたぷよ"];
+const SPECIAL_MARK = { 6: "◇", 7: "", 8: "" };           // 7・8は色だけ（文字なし）
+// ぷよ1個の見た目（色・+・◇）を要素に反映する
+function styleCell(el, color, plus) {
+    if (color === -1 || color == null) { el.style.backgroundColor = "transparent"; el.textContent = ""; el.style.color = ""; el.style.textShadow = ""; el.style.boxShadow = ""; return; }
+    el.style.backgroundColor = COLORS[color];
+    el.textContent = color >= 6 ? SPECIAL_MARK[color] : (plus ? "+" : "");
+    el.style.color = color === 6 ? "#555" : "";
+    el.style.textShadow = color === 6 ? "none" : ""; el.style.boxShadow = color === 6 ? "inset 0 0 0 1px #000" : "";
+}
 const fm  = x => Math.round(x * 100) / 100;
 const fmt = x => fm(x).toLocaleString('ja-JP', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
@@ -298,7 +312,7 @@ function readInput() {
     for (let r = 0; r < 6; r++) {
         const cs = fval(r).padStart(8, '0'), ps = fval(6 + r).padStart(8, '0'), bs = fval(12 + r).padStart(8, '0');
         for (let c = 0; c < 8; c++) {
-            let v = parseInt(cs[c]); if (isNaN(v) || v < 0 || v > 5) v = 0;
+            let v = parseInt(cs[c]); if (isNaN(v) || v < 0 || v > 8) v = 0;
             orig[r * 8 + c] = v;
             plus[r * 8 + c] = (ps[c] === '1' || ps[c] === '+') ? 1 : 0;
             bonus[r * 8 + c] = (bs[c] === '1' || bs[c] === 'B') ? 1 : 0;
@@ -307,7 +321,7 @@ function readInput() {
     const nc = fval(18).padStart(8, '1'), np = fval(19).padStart(8, '0');
     const nextC = [], nextP = [];
     for (let c = 0; c < 8; c++) {
-        let v = parseInt(nc[c]); if (isNaN(v) || v < 0 || v > 5) v = 1;
+        let v = parseInt(nc[c]); if (isNaN(v) || v < 0 || v > 8) v = 1;
         nextC.push(v); nextP.push((np[c] === '1' || np[c] === '+') ? 1 : 0);
     }
     const atk = [0];
@@ -322,7 +336,7 @@ function readInput() {
 // 元の色と同じになった塗りは「塗りなし」にそろえる
 function sanitizePaint() {
     const orig = readInput().orig;
-    for (let i = 0; i < 48; i++) if (paint[i] === orig[i]) paint[i] = -1;
+    for (let i = 0; i < 48; i++) if (paint[i] === orig[i] || orig[i] === 6) paint[i] = -1;   // 元と同じ色・プリズムボールは塗れない
 }
 
 /* ==========================================================================
@@ -345,9 +359,7 @@ function drawCell(gridId, i, color, plus, bonus, changed) {
     cell.classList.toggle('bo', !!bonus);
     const pz = cell.firstElementChild;
     pz.classList.toggle('chg', !!changed);
-    if (color === -1) { pz.style.backgroundColor = "transparent"; pz.textContent = ""; return; }
-    pz.style.backgroundColor = COLORS[color];
-    pz.textContent = plus ? "+" : "";
+    styleCell(pz, color, plus);
 }
 function markCells(gridId, cls, set) {
     for (let i = 0; i < 48; i++) {
@@ -359,8 +371,7 @@ function drawNextRow(rowId, colors, plus) {
     for (let c = 0; c < 8; c++) {
         const cell = document.getElementById(`${rowId}-${c}`);
         if (!cell) continue;
-        if (colors[c] === -1 || colors[c] == null) { cell.style.backgroundColor = "transparent"; cell.textContent = ""; }
-        else { cell.style.backgroundColor = COLORS[colors[c]]; cell.textContent = plus[c] ? "+" : ""; }
+        styleCell(cell, colors[c], plus[c]);
     }
 }
 
@@ -384,7 +395,7 @@ function gravity(color, plus) {
     }
     return moved;
 }
-// 4つ以上つながった塊（上下左右）＋隣のハート。{del, groups}
+// 4つ以上つながった塊（上下左右）＋隣のハート・プリズムボール・お邪魔ぷよ。かたぷよは消えずにお邪魔ぷよになる。{del, groups, kat}
 function findGroups(color) {
     const vis = new Uint8Array(48), del = new Uint8Array(48);
     let groups = 0;
@@ -398,15 +409,22 @@ function findGroups(color) {
         }
         if (q.length >= 4) { groups++; q.forEach(x => del[x] = 1); }
     }
+    const kat = [];
     if (groups) {
+        const katSet = new Set(), base = del.slice();
         for (let i = 0; i < 48; i++) {
-            if (!del[i] || color[i] === 0) continue;
+            if (!base[i] || color[i] === 0) continue;
             const r = (i / 8) | 0, c = i % 8;
             const nb = [r > 0 ? i - 8 : -1, r < 5 ? i + 8 : -1, c > 0 ? i - 1 : -1, c < 7 ? i + 1 : -1];
-            for (const n of nb) if (n !== -1 && color[n] === 0) del[n] = 1;
+            for (const n of nb) {
+                if (n === -1) continue;
+                if (color[n] === 0 || color[n] === 6 || color[n] === 7) del[n] = 1;
+                else if (color[n] === 8) katSet.add(n);
+            }
         }
+        kat.push(...katSet);
     }
-    return { del, groups };
+    return { del, groups, kat };
 }
 
 // S: {color(塗り替え後), plus, bonus, nextC, nextP, trace[], atk[6], kSame, kChain, maxChains}
@@ -414,7 +432,7 @@ function simulate(S) {
     const color = S.color.slice(), plus = S.plus.slice();
     const next = S.nextC.map((c, i) => [{ color: c, plus: S.nextP[i] }]);
     const out = [];
-    const cum = { cnt1: [0, 0, 0, 0, 0, 0], cnt3: [0, 0, 0, 0, 0, 0], dmg: [0, 0, 0, 0, 0, 0], boost: 0, raw: 0 };
+    const cum = { cnt1: new Array(9).fill(0), cnt3: new Array(9).fill(0), dmg: new Array(9).fill(0), boost: 0, raw: 0 };
     const total = () => cum.raw * (1 + Math.min(cum.boost * 0.04, 2.0));
     function snap(desc, extra) {
         out.push(Object.assign({
@@ -425,29 +443,37 @@ function simulate(S) {
         }, extra || {}));
     }
     function erase(g, k) {
-        const cnt1 = [0, 0, 0, 0, 0, 0], cnt3 = [0, 0, 0, 0, 0, 0], hit = [];
-        let boostAdd = 0;
+        const cnt1 = new Array(9).fill(0), cnt3 = new Array(9).fill(0), nC = new Array(9).fill(0), hit = [];
+        let boostAdd = 0, prism = 0;
         for (let i = 0; i < 48; i++) {
             if (!g.del[i]) continue;
             const w = plus[i] ? 2 : 1, c = color[i];
             cnt1[c] += w; cnt3[c] += w * (S.bonus[i] ? 3 : 1);
-            if (S.bonus[i]) boostAdd += w;                    // ブーストの数には♡も数える
+            if (c >= 1 && c <= 5) nC[c] += w;                 // 同時消し数は色1〜5だけ（♡・プリズム・お邪魔は数えない）
+            if (c === 6) prism++;
+            if (S.bonus[i]) boostAdd += w;                    // ブーストの数には♡・プリズム・お邪魔も数える
             hit.push(i); color[i] = -1; plus[i] = 0;
         }
+        (g.kat || []).forEach(i => { color[i] = 7; });       // かたぷよ → お邪魔ぷよ（この連鎖では消えない）
         const chainMult = 1 + chainCoef(k) * S.kChain;
-        const perColor = [0, 0, 0, 0, 0, 0], sameMult = [0, 0, 0, 0, 0, 0];
+        const perColor = new Array(9).fill(0), sameMult = new Array(9).fill(0), ownPts = new Array(9).fill(0), prismShare = new Array(9).fill(0);
         let stepDmg = 0;
-        for (let c = 1; c <= 5; c++) {                       // ♡は同時消し数に数えない
-            if (cnt1[c] > 0) {
-                sameMult[c] = 1 + (cnt1[c] - 4) * 0.15 * S.kSame;
-                perColor[c] = S.atk[c] * g.groups * sameMult[c] * chainMult;
-                stepDmg += perColor[c];
+        for (let c = 1; c <= 5; c++) {
+            if (nC[c] > 0) {
+                sameMult[c] = 1 + (nC[c] - 4) * 0.15 * S.kSame;
+                ownPts[c] = S.atk[c] * g.groups * sameMult[c] * chainMult;
             }
+            prismShare[c] = 3 * prism * S.atk[c];             // プリズムボール: 各色の攻撃力×3（補正なし）を、その色に配分する
+            perColor[c] = ownPts[c] + prismShare[c];
+            stepDmg += perColor[c];
         }
-        for (let c = 0; c < 6; c++) { cum.cnt1[c] += cnt1[c]; cum.cnt3[c] += cnt3[c]; cum.dmg[c] += perColor[c]; }
+        for (let c = 0; c < 9; c++) { cum.cnt1[c] += cnt1[c]; cum.cnt3[c] += cnt3[c]; cum.dmg[c] += perColor[c]; }
         cum.boost += boostAdd; cum.raw += stepDmg;
-        snap(`第 ${k} 連鎖消滅 (分離${g.groups}・連鎖×${fm(chainMult)}・+${fmt(stepDmg)})`,
-            { hit, chain: k, info: { k, groups: g.groups, chainMult, boostAdd, stepDmg, sameMult, cnt1 }, erased: cnt1 });
+        snap(stepDesc(k, g.groups, chainMult, stepDmg, prism),
+            { hit, chain: k, info: { k, groups: g.groups, chainMult, boostAdd, stepDmg, sameMult, cnt1, nC, prism, prismShare }, erased: cnt1 });
+    }
+    function stepDesc(k, groups, chainMult, stepDmg, prism) {
+        return `第 ${k} 連鎖消滅 (分離${groups}・連鎖×${fm(chainMult)}${prism ? `・プリズム${prism}個` : ''}・+${fmt(stepDmg)})`;
     }
 
     snap("塗り替え後 (初期盤面)", { tap: S.trace.slice() });
@@ -481,7 +507,8 @@ function simulate(S) {
     out.forEach(st => {
         if (st.info) {
             st.info.stepDmg *= fMult;
-            st.desc = `第 ${st.info.k} 連鎖消滅 (分離${st.info.groups}・連鎖×${fm(st.info.chainMult)}・+${fmt(st.info.stepDmg)})`;
+            st.info.prismShare = st.info.prismShare.map(v => v * fMult);
+            st.desc = stepDesc(st.info.k, st.info.groups, st.info.chainMult, st.info.stepDmg, st.info.prism);
         }
         st.score = st.cum.raw * fMult;
         st.cum.dmg = st.cum.dmg.map(v => v * fMult);
@@ -494,8 +521,9 @@ function simulate(S) {
 /* ==========================================================================
    チェック（暴発・なぞりの形・塗る順番）
    ========================================================================== */
-function traceCheck(cells) {
+function traceCheck(cells, painted) {
     if (!cells.length) return { ok: true };
+    const badCell = painted ? cells.filter(i => painted[i] === 7 || painted[i] === 8) : [];   // お邪魔ぷよ・かたぷよはなぞれない
     const set = new Set(cells), seen = new Set([cells[0]]), st = [cells[0]];
     while (st.length) {
         const cur = st.pop(), r = (cur / 8) | 0, c = cur % 8;
@@ -509,7 +537,7 @@ function traceCheck(cells) {
     }
     const connected = seen.size === set.size;
     const startOk = cells.some(i => i >= 8);                // 最初の1個は2〜6行目
-    return { ok: connected && startOk, connected, startOk };
+    return { ok: connected && startOk && !badCell.length, connected, startOk, badCell };
 }
 // 塗る色を1色ずつ（全マス）塗っていって、途中で4つつながらない順番を探す
 function findPaintOrder(orig, effPaint) {
@@ -548,7 +576,7 @@ function renderAll() {
     markCells('paint-board', 'trx', traceOn ? new Set() : traceSet);
     for (let c = 0; c < 8; c++) {
         const cell = document.getElementById(`next-row-${c}`);
-        cell.style.backgroundColor = COLORS[inp.nextC[c]]; cell.textContent = inp.nextP[c] ? "+" : "";
+        styleCell(cell, inp.nextC[c], inp.nextP[c]);
     }
 
     // 警告・情報
@@ -569,9 +597,10 @@ function renderAll() {
             if (o.order) msgs.push(['ok', `✅ 暴発なし. 塗る順番: <b>${o.order.map(c => NAMES[c]).join(' → ')}</b>（この順で塗れば途中で消えません）`]);
             else msgs.push(['bad', '⚠️ どの色から塗っても、途中で4つつながって消えてしまいます.']);
         } else msgs.push(['ok', '✅ 暴発なし（塗り替え後に4つ以上のつながりはありません）']);
-        const tc = traceCheck(traceCells);
+        const tc = traceCheck(traceCells, painted);
         if (traceCells.length && !tc.ok) {
             if (!tc.connected) msgs.push(['warn', '⚠️ なぞるマスが縦横斜めでつながっていません.']);
+            if (tc.badCell && tc.badCell.length) msgs.push(['warn', '⚠️ お邪魔ぷよ・かたぷよはなぞれません（塗り替えれば、その色としてなぞれます）.']);
             if (!tc.startOk) msgs.push(['warn', '⚠️ なぞるマスのうち最初の1個は2〜6行目である必要があります（1行目だけになっています）.']);
         }
         if (!traceCells.length) msgs.push(['warn', 'なぞるマスが選ばれていません（「✋ なぞり」を選んでマスをクリック）.']);
@@ -601,8 +630,8 @@ function renderSummary(f, inp) {
         `<div class="kpi"><div class="kl">消えた個数（BE3倍あり）</div><div class="kv">${n3}</div><small>解析シムの点数と同じ</small></div>` +
         `<div class="kpi"><div class="kl">ブースト（BEで消えた数）</div><div class="kv">${f.boost}</div><small>+${fm(f.up * 100)}%（上限+200%）</small></div>`;
     let h = '<tr><th>色</th><th>個数（BE3倍なし）</th><th>個数（BE3倍あり）</th><th>ダメージ(ブースト込み)</th></tr>';
-    [1, 2, 3, 4, 5, 0].forEach(c => {
-        h += `<tr><td><span class="erase-dot" style="background:${COLORS[c]};display:inline-block;vertical-align:middle;margin-right:6px"></span>${NAMES[c]}</td><td>${f.cnt1[c]}</td><td>${f.cnt3[c]}</td><td>${c === 0 ? '—' : fmt(f.dmg[c])}</td></tr>`;
+    [1, 2, 3, 4, 5, 0, 6, 7].filter(c => c <= 5 || f.cnt1[c] > 0).forEach(c => {
+        h += `<tr><td><span class="erase-dot" style="background:${COLORS[c]};display:inline-block;vertical-align:middle;margin-right:6px"></span>${NAMES[c]}</td><td>${f.cnt1[c]}</td><td>${f.cnt3[c]}</td><td>${c === 0 || c >= 6 ? '—' : fmt(f.dmg[c])}</td></tr>`;
     });
     h += `<tr><th>合計</th><th>${n1}</th><th>${n3}</th><th>${fmt(f.damage)}</th></tr>`;
     document.getElementById('sum-table').innerHTML = h;
@@ -628,7 +657,11 @@ function renderStep() {
         `<small>ダメージは最終ブースト ×${fm(st.finalMult || 1)} 込み</small><br>合計 BE3倍なし <b>${sum(cu.cnt1)}</b>個 ／ BE3倍あり <b>${sum(cu.cnt3)}</b>個</div>`;
     html += [1, 2, 3, 4, 5, 0].map(k => {
         const now = st.erased ? st.erased[k] : 0, c1 = cu.cnt1[k], c3 = cu.cnt3[k];
-        const sub = (inf && k >= 1 && inf.cnt1[k] > 0) ? `<br><small>同時${inf.cnt1[k]}個 ×${fm(inf.sameMult[k])}</small>` : '<br><small>&nbsp;</small>';
+        let sub = '<br><small>&nbsp;</small>';
+        if (inf && k >= 1 && k <= 5) {
+            const own = inf.nC[k] > 0 ? `同時${inf.nC[k]}個 ×${fm(inf.sameMult[k])}` : '', pz = inf.prismShare[k] > 0 ? `プリズム+${fmt(inf.prismShare[k])}` : '';
+            if (own || pz) sub = `<br><small>${[own, pz].filter(Boolean).join(' ')}</small>`;
+        }
         return `<div class="erase-chip${now > 0 ? ' hot' : ''}${c1 === 0 ? ' zero' : ''}"><span class="erase-dot" style="background:${COLORS[k]}"></span><span>${NAMES[k]} 計<b>${c1}</b>個${now > 0 ? ` <span class="erase-now">(+${now})</span>` : ''}<br><small>BE3倍あり <b>${c3}</b>個${k >= 1 ? ` ・ ${fmt(cu.dmg[k])}` : ''}</small>${sub}</span></div>`;
     }).join('');
     document.getElementById('playback-erase').innerHTML = html;
@@ -657,12 +690,15 @@ let dragAct = null, dragging = false;
 function applyTool(i) {
     const orig = readInput().orig;
     if (tool === "trace") {
-        if (dragAct === 'add') traceSet.add(i); else traceSet.delete(i);
+        const cur = paint[i] >= 0 ? paint[i] : orig[i];
+        if (dragAct === 'add') { if (cur !== 7 && cur !== 8) traceSet.add(i); }   // お邪魔ぷよ・かたぷよはなぞれない
+        else traceSet.delete(i);
     } else if (tool === "erase") {
         paint[i] = -1;
     } else {
         const c = parseInt(tool);
         if (dragAct === 'clear') paint[i] = -1;
+        else if (orig[i] === 6) paint[i] = -1;                // プリズムボールは塗れない
         else paint[i] = (c === orig[i]) ? -1 : c;
     }
 }
@@ -987,6 +1023,29 @@ window.addEventListener('DOMContentLoaded', () => {
     setTool('1');
     renderAll();
 });
+</script>
+<script>
+/* プリズムボール（白）の黒い縁: 背景が白のぷよにだけ付け、色が変わったら必ず外す（描画の経路ごとに外し忘れないよう、style の変化を見て揃える） */
+(function () {
+  const EDGE = 'inset 0 0 0 1px #000';
+  const EDGEN = (() => { const t = document.createElement('span'); t.style.boxShadow = EDGE; return t.style.boxShadow; })();   // ブラウザが整えた形（比べる用）
+  const norm = (c) => { const t = document.createElement('span'); t.style.backgroundColor = c; return t.style.backgroundColor; };
+  const white = () => norm(getComputedStyle(document.documentElement).getPropertyValue('--p-w').trim() || '#ffffff');
+  let W = null;
+  const fix = (el) => {
+    if (!el || !el.style) return;
+    if (W === null) W = white();
+    const on = el.style.backgroundColor === W && !el.children.length && el.offsetWidth > 0 && el.offsetWidth < 80 && !el.closest('button, input, select, textarea, label');
+    const cur = el.style.boxShadow;
+    if (on) { if (cur !== EDGEN) el.style.boxShadow = EDGE; }
+    else if (cur === EDGEN) el.style.boxShadow = '';
+  };
+  const start = () => {
+    new MutationObserver((ms) => { for (const m of ms) fix(m.target); }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['style'] });
+    document.querySelectorAll('[style]').forEach(fix);
+  };
+  if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+})();
 </script>
 </body>
 </html>

@@ -114,6 +114,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                 <strong>1. 盤面の入力</strong><br>
                 &emsp;全て半角で入力. 以降の項目も同様.<br>
                 &emsp;・<strong>色情報</strong>: 1:赤, 2:青, 3:緑, 4:黄, 5:紫, 0:ハート で各セルを定義.<br>
+                &emsp;・<strong>色6〜8</strong>: 6=プリズムボール（塗れない／消える塊の隣で消え、1個につき「色1〜5の係数の合計×3」点）、7=お邪魔ぷよ（塗れる／隣で消える／0点）、8=かたぷよ（塗れる／隣では消えず7になる）.<br>
                 &emsp;・<strong>プラス状態</strong>: プラスぷよを 1、通常状態を 0 と定義.<br>
                 &emsp;・<strong>ボーナスエリア（BE）</strong>: 欄は残してあるが、今は何を書いても 00000000 として扱う（計算に使わない）.<br><br>
 
@@ -233,7 +234,13 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
 
     
 
-    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
+    <script>
+/* ぷよの色は共通CSS（base.css の --p-r など）から読む。CSSを変えると、ここも変わる */
+const PZ = (() => { const g = (v, fb) => (getComputedStyle(document.documentElement).getPropertyValue(v).trim() || fb);
+  return { get h() { return g('--p-h', '#f9a8d4'); }, get r() { return g('--p-r', '#e5484d'); }, get b() { return g('--p-b', '#3b82f6'); }, get g() { return g('--p-g', '#22c55e'); },
+           get y() { return g('--p-y', '#eab308'); }, get p() { return g('--p-p', '#a855f7'); }, get w() { return g('--p-w', '#ffffff'); }, get o() { return g('--p-o', '#9aa0a6'); }, get k() { return g('--p-k', '#4b5057'); } }; })();
+</script>
+<script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
 
 <script>
@@ -255,6 +262,12 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
 
     // ボーナスエリア(BE欄)は残してあるが、今は何を書いても 00000000 として送る。使いたくなったら true にする
     const USE_BONUS = false;
+
+    // 色6〜8（共通CSSの --p-w / --p-o / --p-k から読む）: 6=プリズムボール(白に◇) 7=お邪魔ぷよ 8=かたぷよ（7・8は文字なし）
+    const cssColor = (v, fb) => (getComputedStyle(document.documentElement).getPropertyValue(v).trim() || fb);
+    const SPECIAL_COLORS = [cssColor('--p-w', '#ffffff'), cssColor('--p-o', '#9aa0a6'), cssColor('--p-k', '#4b5057')];
+    const SPECIAL_MARK = { 6: "◇", 7: "", 8: "" };
+    const markText = (color, plus) => color >= 6 ? SPECIAL_MARK[color] : (plus ? "+" : "");
 
     let myExecs = parseInt(localStorage.getItem('puyoyume_my_execs')) || 0;
     let myPatterns = parseInt(localStorage.getItem('puyoyume_my_patterns')) || 0;
@@ -412,7 +425,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         if (sMin === sMax) { sMin = Math.max(0, sMin - 5); sMax += 5; }
         const W = 640, H = 260, L = 44, R = 12, T = 12, B = 30;
         const X = t => L + (W - L - R) * t / tMax, Y = s => H - B - (H - T - B) * (s - sMin) / (sMax - sMin);
-        const colors = ["#e5484d", "#3b82f6", "#22c55e", "#eab308", "#a855f7", "#f08c00", "#15aabf", "#868e96"];
+        const colors = [PZ.r, PZ.b, PZ.g, PZ.y, PZ.p, "#f08c00", "#15aabf", "#868e96"];
         let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;color:var(--fg)" xmlns="http://www.w3.org/2000/svg">`;
         svg += `<line x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}" stroke="currentColor" opacity=".4"/><line x1="${L}" y1="${T}" x2="${L}" y2="${H - B}" stroke="currentColor" opacity=".4"/>`;
         svg += `<text x="${L - 6}" y="${Y(sMax) + 4}" text-anchor="end" font-size="11" fill="currentColor">${sMax}</text><text x="${L - 6}" y="${Y(sMin) + 4}" text-anchor="end" font-size="11" fill="currentColor">${sMin}</text>`;
@@ -456,7 +469,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
     function getLogicMap() {
         const a = parseInt(document.getElementById('target-a').value) || 1;
         const b = (a === 1) ? 2 : 1;   // 塗り替えは1色だけ。残りの色の並べ替え用に、aと違う色を自動で選ぶ
-        let map = [0, 1, 2, 3, 4, 5];
+        let map = [0, 1, 2, 3, 4, 5, 6, 7, 8];     // 6〜8（プリズム・お邪魔・かたぷよ）は入れ替えない
 
         let temp1 = map[1];
         map[1] = map[a];
@@ -471,7 +484,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
 
     function syncGuideText() {
         const colorNames = ["ハート", "赤", "青", "緑", "黄", "紫"];
-        const colorCodes = ["#ffdae9", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
+        const colorCodes = [PZ.h, PZ.r, PZ.b, PZ.g, PZ.y, PZ.p];
         const aVal = document.getElementById('target-a').value;
         const bVal = document.getElementById('target-b').value;
 
@@ -558,10 +571,10 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
     function refreshNextRow() {
         const f = document.querySelectorAll('.input-field');
         const cs = (f[18].value || placeholderHints[18]).padStart(8, '1'), ps = (f[19].value || placeholderHints[19]).padStart(8, '0');
-        const colors = ["transparent", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
+        const colors = ["transparent", PZ.r, PZ.b, PZ.g, PZ.y, PZ.p].concat(SPECIAL_COLORS);
         for (let i = 0; i < 8; i++) {
             const cell = document.getElementById(`next-cell-${i}`);
-            if (cell) { cell.style.backgroundColor = colors[parseInt(cs[i]) || 0]; cell.textContent = ps[i] === "1" ? "+" : ""; }
+            if (cell) { cell.style.backgroundColor = colors[parseInt(cs[i]) || 0]; cell.textContent = markText(parseInt(cs[i]) || 0, ps[i] === "1"); }
         }
     }
     // 盤面のマスに印(クラス)を付ける: tr=なぞり位置(水色枠) hit=消えたマス(点線枠)
@@ -739,9 +752,9 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                 const cell = document.getElementById(`next-cell-${i}`);
                 if (cell) {
                     const colorIdx = parseInt(nextColorsStr[i]) || 0;
-                    const colors = ["transparent", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
+                    const colors = ["transparent", PZ.r, PZ.b, PZ.g, PZ.y, PZ.p].concat(SPECIAL_COLORS);
                     cell.style.backgroundColor = colors[colorIdx];
-                    cell.textContent = nextPlusStr[i] === "1" ? "+" : "";
+                    cell.textContent = markText(colorIdx, nextPlusStr[i] === "1");
                 }
             }
 
@@ -802,23 +815,25 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         const pz = cell.firstElementChild;
         const logicMap = getLogicMap();
         const originalColor = (colorIndex === -1) ? -1 : logicMap[colorIndex];
-        const colors = ["transparent", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
+        const colors = ["transparent", PZ.r, PZ.b, PZ.g, PZ.y, PZ.p].concat(SPECIAL_COLORS);
 
         if (originalColor === -1) { pz.style.backgroundColor = "transparent"; pz.textContent = ""; return; }
 
         if (originalColor === 0 && (gridId === "original-board" || gridId === "output-board" || gridId === "playback-board")) {
-            pz.style.backgroundColor = "#ffdae9";
+            pz.style.backgroundColor = PZ.h;
         } else {
             pz.style.backgroundColor = colors[originalColor] || "rgba(255,255,255,0.05)";
         }
-        pz.textContent = (gridId !== "output-board" && isPlus) ? "+" : "";
+        pz.textContent = originalColor >= 6 ? SPECIAL_MARK[originalColor] : ((gridId !== "output-board" && isPlus) ? "+" : "");
+        pz.style.color = originalColor === 6 ? "#555" : "";
+        pz.style.textShadow = originalColor === 6 ? "none" : ""; pz.style.boxShadow = originalColor === 6 ? "inset 0 0 0 1px #000" : "";
     };
 
     window.updateUITrace = function(row, col, colorIndex) {
         const logicMap = getLogicMap();
         const originalColor = logicMap[colorIndex];
 
-        const colorCodes = ["#ccc", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
+        const colorCodes = ["#ccc", PZ.r, PZ.b, PZ.g, PZ.y, PZ.p];
         const target = document.getElementById('trace-result');
         const colorCode = colorCodes[originalColor] || "#fff";
         target.innerHTML = `${row} 行 ${col} 列 <span style="color: ${colorCode}; margin-left: 12px; font-size: 1.2em; text-shadow: 0 0 10px ${colorCode};">●</span>`;
@@ -843,11 +858,12 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         const reserve2Val   = parseInt(inputs[25] && inputs[25].value !== "" ? inputs[25].value : placeholderHints[25]) || 0; // 空欄のときはエンジンと同じ初期値(placeholder)を使う
         const maxChains     = Math.max(1, reserve2Val + 1); // C言語側の max_chains 定義
         const coefInternal = getCoefInternal();   // 色スロットごとの係数
+        const PRISM_PT = 3 * (coefInternal[1] + coefInternal[2] + coefInternal[3] + coefInternal[4] + coefInternal[5]);   // プリズムボール1個の点
 
         // 各列（0〜7列）のNEXTキュー（各列1個ずつ）
         let nextColumns = [];
         for (let c = 0; c < 8; c++) {
-            const rawCol = parseInt(nextColorsStr[c]) || 1;
+            const rawCol = isNaN(parseInt(nextColorsStr[c])) ? 1 : parseInt(nextColorsStr[c]);
             const slotCol = logicMap.indexOf(rawCol);
             const isPl = parseInt(nextPlusStr[c]) || 0;
             nextColumns.push([{ color: slotCol !== -1 ? slotCol : rawCol, plus: isPl }]);
@@ -913,15 +929,16 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
 
             chainCount++;
             let stepScore = 0;
-            const eCnt = [0,0,0,0,0,0], ePts = [0,0,0,0,0,0];   // 実際の色(0=♡,1=赤..5=紫)ごとの消えた個数・点数
+            const eCnt = new Array(9).fill(0), ePts = new Array(9).fill(0);   // 実際の色(0=♡,1=赤..5=紫)ごとの消えた個数・点数
 
             for (let i = 0; i < 48; i++) {
                 if (toDelete[i]) {
                     const p = currentBoard[i].plus;
                     const b = fixedBonusArray[i];
-                    const pt = (p ? 2 : 1) * (b ? 3 : 1) * coefInternal[currentBoard[i].color];
+                    const cc = currentBoard[i].color;
+                    const pt = cc === 6 ? PRISM_PT : cc === 7 ? 0 : (p ? 2 : 1) * (b ? 3 : 1) * coefInternal[cc];   // プリズム=色1〜5の係数の合計×3（補正なし）、お邪魔=0点
                     stepScore += pt;
-                    eCnt[logicMap[currentBoard[i].color]] += (p ? 2 : 1); ePts[logicMap[currentBoard[i].color]] += pt;
+                    eCnt[logicMap[cc]] += (cc >= 6 ? 1 : (p ? 2 : 1)); ePts[logicMap[cc]] += pt;
                     if (!p && b && currentBoard[i].id >= 0) starSet.add(currentBoard[i].id);
 
                     currentBoard[i].color = -1;
@@ -929,6 +946,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                     currentBoard[i].id = -1;
                 }
             }
+            (toDelete.kat || []).forEach(k => { currentBoard[k].color = 7; });
             totalScore += stepScore;
 
             playbackSteps.push({
@@ -987,15 +1005,16 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                 chainCount++;
                 postNextChains++;
                 let stepScore = 0;
-                const eCnt = [0,0,0,0,0,0], ePts = [0,0,0,0,0,0];
+                const eCnt = new Array(9).fill(0), ePts = new Array(9).fill(0);
 
                 for (let i = 0; i < 48; i++) {
                     if (finalDelete[i]) {
                         const p = currentBoard[i].plus;
                         const b = fixedBonusArray[i];
-                        const pt = (p ? 2 : 1) * (b ? 3 : 1) * coefInternal[currentBoard[i].color];
+                        const cc = currentBoard[i].color;
+                        const pt = cc === 6 ? PRISM_PT : cc === 7 ? 0 : (p ? 2 : 1) * (b ? 3 : 1) * coefInternal[cc];
                         stepScore += pt;
-                        eCnt[logicMap[currentBoard[i].color]] += (p ? 2 : 1); ePts[logicMap[currentBoard[i].color]] += pt;
+                        eCnt[logicMap[cc]] += (cc >= 6 ? 1 : (p ? 2 : 1)); ePts[logicMap[cc]] += pt;
                     if (!p && b && currentBoard[i].id >= 0) starSet.add(currentBoard[i].id);
 
                         currentBoard[i].color = -1;
@@ -1003,6 +1022,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                         currentBoard[i].id = -1;
                     }
                 }
+                (finalDelete.kat || []).forEach(k => { currentBoard[k].color = 7; });
                 totalScore += stepScore;
 
                 playbackSteps.push({
@@ -1028,9 +1048,9 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         }
 
         // 色ごとの累計（各コマに持たせる）
-        { const cc = [0,0,0,0,0,0], cp = [0,0,0,0,0,0];
+        { const cc = new Array(9).fill(0), cp = new Array(9).fill(0);
           playbackSteps.forEach(st => {
-              if (st.erased) for (let k = 0; k < 6; k++) { cc[k] += st.erased[k]; cp[k] += st.erasedPts[k]; }
+              if (st.erased) for (let k = 0; k < 9; k++) { cc[k] += st.erased[k]; cp[k] += st.erasedPts[k]; }
               st.cumErased = cc.slice(); st.cumPts = cp.slice();
           }); }
         playbackSteps[0].star = [...starSet]; // 最初の盤面にだけ印を付ける
@@ -1070,6 +1090,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         let visited = new Array(48).fill(false);
         let toDelete = new Array(48).fill(0);
         let foundChain = false;
+        toDelete.kat = [];
 
         // 1. 色ぷよ(1-5)の4連結探索
         for (let i = 0; i < 48; i++) {
@@ -1110,7 +1131,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         // 2. 消える色ぷよに隣接するハートぷよ(0)の巻き込み
         if (foundChain) {
             for (let i = 0; i < 48; i++) {
-                if (toDelete[i] && board[i].color !== 0) {
+                if (toDelete[i] && board[i].color >= 1 && board[i].color <= 5) {
                     const r = Math.floor(i / 8);
                     const c = i % 8;
 
@@ -1122,9 +1143,10 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                     ];
 
                     neighbors.forEach(nIdx => {
-                        if (nIdx !== -1 && board[nIdx].color === 0) {
-                            toDelete[nIdx] = 1;
-                        }
+                        if (nIdx === -1) return;
+                        const nc = board[nIdx].color;
+                        if (nc === 0 || nc === 6 || nc === 7) toDelete[nIdx] = 1;           // ハート・プリズム・お邪魔は隣で消える
+                        else if (nc === 8 && !toDelete.kat.includes(nIdx)) toDelete.kat.push(nIdx);   // かたぷよは消えずに7になる
                     });
                 }
             }
@@ -1152,10 +1174,10 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         document.getElementById('playback-status').textContent = `[${currentPlaybackIndex + 1}/${playbackSteps.length}] ${step.desc} (計 ${fm(step.score)}点)`;
 
         // 色ごとの消去数（このコマ / 累計）
-        { const names = ["♡","赤","青","緑","黄","紫"];
-          const cols = ["#ffdae9","#ff3e3e","#4da3ff","#3eff3e","#ffeb3e","#ae81ff"];
+        { const names = ["♡","赤","青","緑","黄","紫","プリズム","お邪魔","かたぷよ"];
+          const cols = [PZ.h,PZ.r,PZ.b,PZ.g,PZ.y,PZ.p].concat(SPECIAL_COLORS);
           const box = document.getElementById('playback-erase');
-          if (box) box.innerHTML = [1,2,3,4,5,0].map(k => {
+          if (box) box.innerHTML = [1,2,3,4,5,0,6,7].filter(k => k <= 5 || (step.cumErased && step.cumErased[k] > 0)).map(k => {
               const now = step.erased ? step.erased[k] : 0, cum = step.cumErased ? step.cumErased[k] : 0;
               const pts = step.cumPts ? step.cumPts[k] : 0;
               return `<div class="erase-chip${now > 0 ? ' hot' : ''}${cum === 0 ? ' zero' : ''}"><span class="erase-dot" style="background:${cols[k]}"></span><span>${names[k]} 計<b>${cum}</b>個${now > 0 ? ` <span class="erase-now">(+${now})</span>` : ''}<br><small>${fm(pts)}点</small></span></div>`;
@@ -1173,7 +1195,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
 
         // NEXTぷよ残数描画
         const logicMap = getLogicMap();
-        const colors = ["transparent", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
+        const colors = ["transparent", PZ.r, PZ.b, PZ.g, PZ.y, PZ.p].concat(SPECIAL_COLORS);
         for (let c = 0; c < 8; c++) {
             const cell = document.getElementById(`playback-next-cell-${c}`);
             if (cell) {
@@ -1181,7 +1203,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
                     const item = step.next[c][0];
                     const origCol = logicMap[item.color];
                     cell.style.backgroundColor = colors[origCol] || "transparent";
-                    cell.textContent = item.plus ? "+" : "";
+                    cell.textContent = markText(origCol, item.plus);
                 } else {
                     cell.style.backgroundColor = "transparent";
                     cell.textContent = "";
@@ -1553,7 +1575,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
         }
         
         const nextColorsStr = updatedInputs[18].value.padStart(8, '0');
-        const colors = ["#ffdae9", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
+        const colors = [PZ.h, PZ.r, PZ.b, PZ.g, PZ.y, PZ.p].concat(SPECIAL_COLORS);
         
         for (let i = 0; i < 8; i++) {
             const cell = document.getElementById(`next-cell-${i}`);
@@ -1564,6 +1586,29 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
             }
         }
     }
+</script>
+<script>
+/* プリズムボール（白）の黒い縁: 背景が白のぷよにだけ付け、色が変わったら必ず外す（描画の経路ごとに外し忘れないよう、style の変化を見て揃える） */
+(function () {
+  const EDGE = 'inset 0 0 0 1px #000';
+  const EDGEN = (() => { const t = document.createElement('span'); t.style.boxShadow = EDGE; return t.style.boxShadow; })();   // ブラウザが整えた形（比べる用）
+  const norm = (c) => { const t = document.createElement('span'); t.style.backgroundColor = c; return t.style.backgroundColor; };
+  const white = () => norm(getComputedStyle(document.documentElement).getPropertyValue('--p-w').trim() || '#ffffff');
+  let W = null;
+  const fix = (el) => {
+    if (!el || !el.style) return;
+    if (W === null) W = white();
+    const on = el.style.backgroundColor === W && !el.children.length && el.offsetWidth > 0 && el.offsetWidth < 80 && !el.closest('button, input, select, textarea, label');
+    const cur = el.style.boxShadow;
+    if (on) { if (cur !== EDGEN) el.style.boxShadow = EDGE; }
+    else if (cur === EDGEN) el.style.boxShadow = '';
+  };
+  const start = () => {
+    new MutationObserver((ms) => { for (const m of ms) fix(m.target); }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['style'] });
+    document.querySelectorAll('[style]').forEach(fix);
+  };
+  if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+})();
 </script>
 </body>
 </html>

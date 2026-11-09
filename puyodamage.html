@@ -901,7 +901,7 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
             pz.style.backgroundColor = colors[originalColor];
             pz.textContent = SPECIAL_MARK[originalColor] || "";
             pz.style.color = originalColor === 6 ? "#555" : "";
-            pz.style.textShadow = originalColor === 6 ? "none" : "";
+            pz.style.textShadow = originalColor === 6 ? "none" : ""; pz.style.boxShadow = originalColor === 6 ? "inset 0 0 0 1px #000" : "";
             return;
         }
         pz.style.color = ""; pz.style.textShadow = "";
@@ -1725,6 +1725,29 @@ body.is-mobile .guide-select{height:44px;font-size:36px;border-radius:12px}
             }
         }
     }
+</script>
+<script>
+/* プリズムボール（白）の黒い縁: 背景が白のぷよにだけ付け、色が変わったら必ず外す（描画の経路ごとに外し忘れないよう、style の変化を見て揃える） */
+(function () {
+  const EDGE = 'inset 0 0 0 1px #000';
+  const EDGEN = (() => { const t = document.createElement('span'); t.style.boxShadow = EDGE; return t.style.boxShadow; })();   // ブラウザが整えた形（比べる用）
+  const norm = (c) => { const t = document.createElement('span'); t.style.backgroundColor = c; return t.style.backgroundColor; };
+  const white = () => norm(getComputedStyle(document.documentElement).getPropertyValue('--p-w').trim() || '#ffffff');
+  let W = null;
+  const fix = (el) => {
+    if (!el || !el.style) return;
+    if (W === null) W = white();
+    const on = el.style.backgroundColor === W && !el.children.length && el.offsetWidth > 0 && el.offsetWidth < 80 && !el.closest('button, input, select, textarea, label');
+    const cur = el.style.boxShadow;
+    if (on) { if (cur !== EDGEN) el.style.boxShadow = EDGE; }
+    else if (cur === EDGEN) el.style.boxShadow = '';
+  };
+  const start = () => {
+    new MutationObserver((ms) => { for (const m of ms) fix(m.target); }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['style'] });
+    document.querySelectorAll('[style]').forEach(fix);
+  };
+  if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+})();
 </script>
 </body>
 </html>
