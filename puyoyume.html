@@ -858,7 +858,7 @@ const PZ = (() => { const g = (v, fb) => (getComputedStyle(document.documentElem
         const reserve2Val   = parseInt(inputs[25] && inputs[25].value !== "" ? inputs[25].value : placeholderHints[25]) || 0; // 空欄のときはエンジンと同じ初期値(placeholder)を使う
         const maxChains     = Math.max(1, reserve2Val + 1); // C言語側の max_chains 定義
         const coefInternal = getCoefInternal();   // 色スロットごとの係数
-        const PRISM_PT = 3 * (coefInternal[1] + coefInternal[2] + coefInternal[3] + coefInternal[4] + coefInternal[5]);   // プリズムボール1個の点
+        const PRISM_PT = 0 * (coefInternal[1] + coefInternal[2] + coefInternal[3] + coefInternal[4] + coefInternal[5]);   // プリズムボール1個の点
 
         // 各列（0〜7列）のNEXTキュー（各列1個ずつ）
         let nextColumns = [];
