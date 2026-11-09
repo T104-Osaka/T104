@@ -1177,7 +1177,7 @@ const PZ = (() => { const g = (v, fb) => (getComputedStyle(document.documentElem
         { const names = ["♡","赤","青","緑","黄","紫","プリズム","お邪魔","かたぷよ"];
           const cols = [PZ.h,PZ.r,PZ.b,PZ.g,PZ.y,PZ.p].concat(SPECIAL_COLORS);
           const box = document.getElementById('playback-erase');
-          if (box) box.innerHTML = [1,2,3,4,5,0,6,7].filter(k => k <= 5 || (step.cumErased && step.cumErased[k] > 0)).map(k => {
+          if (box) box.innerHTML = [1,2,3,4,5,0,6,7].filter(k => k <= 7 || (step.cumErased && step.cumErased[k] > 0)).map(k => {
               const now = step.erased ? step.erased[k] : 0, cum = step.cumErased ? step.cumErased[k] : 0;
               const pts = step.cumPts ? step.cumPts[k] : 0;
               return `<div class="erase-chip${now > 0 ? ' hot' : ''}${cum === 0 ? ' zero' : ''}"><span class="erase-dot" style="background:${cols[k]}"></span><span>${names[k]} 計<b>${cum}</b>個${now > 0 ? ` <span class="erase-now">(+${now})</span>` : ''}<br><small>${fm(pts)}点</small></span></div>`;
