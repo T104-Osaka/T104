@@ -230,6 +230,9 @@ table.sum td:first-child,table.sum th:first-child{text-align:left}
     </div>
 </div>
 
+<script src="js/puyo_rules.js"></script>
+<script src="js/puyo_rules_next.js"></script>
+<script src="js/puyo_judge.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
 <script>
@@ -820,7 +823,7 @@ function saveSlot() {
 }
 
 /* ==========================================================================
-   📸 写真から読み込み（puyodamage と同じ判定）
+   📸 写真から読み込み（共通の判定 js/puyo_judge.js）
    ========================================================================== */
 const ocrCanvas = document.getElementById('ocr-canvas');
 const ocrCtx = ocrCanvas.getContext('2d');
@@ -837,138 +840,18 @@ function handleOcrImage(file) {
 }
 
 function analyzeImage(img) {
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = img.width; tempCanvas.height = img.height;
-    const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
-    tempCtx.drawImage(img, 0, 0);
-    const data = tempCtx.getImageData(0, 0, img.width, img.height).data;
-    const width = img.width, height = img.height;
+    // 画像の判定は共通ファイル js/puyo_judge.js（ルールは js/puyo_rules.js / js/puyo_rules_next.js）が担当
+    if (!window.PuyoJudge) { setStatus('js/puyo_judge.js を読み込めませんでした'); return; }
+    const res = PuyoJudge.analyzeImage(img);
+    if (res.error) { setStatus(res.error); return; }
 
-    // 1. 垂直境界検知
-    const allRowCounts = [];
-    for (let y = 0; y < height; y++) {
-        const u = new Set();
-        for (let x = 0; x < width; x++) { const i = (y * width + x) * 4; u.add((data[i] << 16) | (data[i + 1] << 8) | data[i + 2]); }
-        allRowCounts.push(u.size);
-    }
-    let topCutY = 0, bottomCutY = height, foundPlateau = false, lowCountRows = 0;
-    const scanStartY = Math.floor(height * 0.5), limitY = Math.floor(height * 0.8);
-    for (let y = scanStartY; y < height; y++) {
-        if (!foundPlateau) {
-            if (allRowCounts[y] <= 40) { lowCountRows++; if (lowCountRows >= 3) foundPlateau = true; } else lowCountRows = 0;
-        } else if (topCutY === 0) { if (allRowCounts[y] >= 70) topCutY = y; }
-        if (y >= limitY && allRowCounts[y] <= 40) { bottomCutY = y; break; }
-    }
-    const finalHeight = bottomCutY - topCutY;
-    const aTop = Math.floor(topCutY + finalHeight * 0.25), aBottom = Math.floor(bottomCutY - finalHeight * 0.25);
-
-    // 2. 水平境界検知
-    const colCounts = [];
-    for (let x = 0; x < width; x++) {
-        const u = new Set();
-        for (let y = aTop; y < aBottom; y++) { const i = (y * width + x) * 4; u.add((data[i] << 16) | (data[i + 1] << 8) | data[i + 2]); }
-        colCounts.push(u.size);
-    }
-    let leftX = 0, fGap = false, lLow = 0;
-    for (let x = 0; x < width; x++) {
-        if (!fGap) { if (colCounts[x] <= 10) { lLow++; if (lLow >= 3) fGap = true; } else lLow = 0; }
-        else if (colCounts[x] >= 40) { leftX = x; break; }
-    }
-    let rightX = width, rLow = 0;
-    for (let x = Math.floor(width * 0.7); x < width; x++) {
-        if (colCounts[x] <= 10) { rLow++; if (rLow >= 3) { rightX = x - 1; break; } } else rLow = 0;
-    }
-    const finalWidth = rightX - leftX;
-    if (finalWidth <= 0 || finalHeight <= 0) { setStatus('盤面を見つけられませんでした'); return; }
-
-    ocrCanvas.width = finalWidth; ocrCanvas.height = finalHeight;
-    ocrCtx.drawImage(img, leftX, topCutY, finalWidth, finalHeight, 0, 0, finalWidth, finalHeight);
+    // 切り出した盤面のプレビュー
+    const bd = res.board;
+    ocrCanvas.width = bd.w; ocrCanvas.height = bd.h;
+    ocrCtx.drawImage(img, bd.left, bd.top, bd.w, bd.h, 0, 0, bd.w, bd.h);
     document.getElementById('ocr-preview-area').style.display = 'flex';
 
-    // 3. マスごとの判定
-    const COLOR_PALETTE = { "1": { r: 210, g: 50, b: 50 }, "2": { r: 50, g: 100, b: 210 }, "3": { r: 50, g: 160, b: 50 }, "4": { r: 220, g: 200, b: 50 }, "5": { r: 150, g: 50, b: 180 } };
-    const yRatios = [1, 2, 2, 2, 2, 2, 2];
-    const uH = finalHeight / 13, uW = finalWidth / 8;
-    let curY = 0;
-    const detColor = new Array(48).fill(0), detPlus = new Array(48).fill(0), detBonus = new Array(48).fill(0);
-    let nextStr = "";
-
-    for (let row = 0; row < 7; row++) {
-        const rowHeight = yRatios[row] * uH;
-        for (let col = 0; col < 8; col++) {
-            let sX, eX, sY, eY;
-            const cellLeft = leftX + col * uW, cellRight = leftX + (col + 1) * uW;
-            const cellTop = topCutY + curY, cellBottom = topCutY + curY + rowHeight;
-            if (row === 0) {
-                sX = cellLeft + uW * 0.33; eX = cellLeft + uW * 0.48;
-                sY = cellTop + rowHeight * 0.33; eY = cellTop + rowHeight * 0.55;
-            } else {
-                sX = cellLeft + uW * 0.25; eX = cellLeft + uW * 0.75;
-                sY = cellTop + rowHeight * 0.25; eY = cellTop + rowHeight * 0.75;
-            }
-            // ボーナスエリア: 四隅のフチの白飛び
-            if (row >= 1) {
-                let sr = 0, sg = 0, cnt = 0;
-                const off = 4;
-                [[cellLeft + off, cellTop + off], [cellRight - off, cellTop + off], [cellLeft + off, cellBottom - off], [cellRight - off, cellBottom - off]].forEach(([x, y]) => {
-                    const px = Math.floor(x), py = Math.floor(y);
-                    if (px >= 0 && px < width && py >= 0 && py < height) { const idx = (py * width + px) * 4; sr += data[idx]; sg += data[idx + 1]; cnt++; }
-                });
-                if (cnt > 0 && sr / cnt >= 200 && sg / cnt >= 195) detBonus[(row - 1) * 8 + col] = 1;
-            }
-            // 平均色など
-            let sumR = 0, sumG = 0, sumB = 0, count = 0;
-            for (let py = Math.floor(sY); py < Math.floor(eY); py++) for (let px = Math.floor(sX); px < Math.floor(eX); px++) {
-                const i = (py * width + px) * 4, r = data[i], g = data[i + 1], b = data[i + 2];
-                if (r > 240 && g > 240 && b > 240) continue;
-                sumR += r; sumG += g; sumB += b; count++;
-            }
-            const mi = (Math.floor((sY + eY) / 2) * width + Math.floor((sX + eX) / 2)) * 4;
-            if (count === 0) { sumR = data[mi]; sumG = data[mi + 1]; sumB = data[mi + 2]; count = 1; }
-            const avg = { r: sumR / count, g: sumG / count, b: sumB / count };
-            const rawAll = [], pixels = [];
-            for (let py = Math.floor(sY); py < Math.floor(eY); py++) for (let px = Math.floor(sX); px < Math.floor(eX); px++) {
-                const i = (py * width + px) * 4, r = data[i], g = data[i + 1], b = data[i + 2];
-                rawAll.push({ r, g, b });
-                if (r > 240 && g > 240 && b > 240) continue;
-                pixels.push({ r, g, b });
-            }
-            if (!pixels.length) pixels.push({ r: data[mi], g: data[mi + 1], b: data[mi + 2] });
-            if (!rawAll.length) rawAll.push({ r: data[mi], g: data[mi + 1], b: data[mi + 2] });
-            const top5 = (arr, key, asc) => {
-                const s = [...arr].sort((a, b) => asc ? a[key] - b[key] : b[key] - a[key]).slice(0, Math.min(5, arr.length));
-                const t = s.reduce((a, p) => ({ r: a.r + p.r, g: a.g + p.g, b: a.b + p.b }), { r: 0, g: 0, b: 0 });
-                return { r: t.r / s.length, g: t.g / s.length, b: t.b / s.length };
-            };
-            let id = "0";
-            if (row === 0) {
-                let best = Infinity;
-                for (const k in COLOR_PALETTE) {
-                    const t = COLOR_PALETTE[k], d = Math.hypot(avg.r - t.r, avg.g - t.g, avg.b - t.b);
-                    if (d < best) { best = d; id = k; }
-                }
-                nextStr += id;
-            } else {
-                const bMax5 = top5(pixels, 'b', false), bMin5 = top5(pixels, 'b', true), gMin5 = top5(pixels, 'g', true);
-                const isHeart = avg.b >= 200 && avg.r >= 220 && bMax5.g <= 225 && bMin5.r <= 227 && bMin5.b >= 124 && gMin5.b <= 200 && gMin5.r >= 173;
-                const condRed = (avg.r * 1.44 - avg.b - 138) > 0;
-                const condYellowB = (bMin5.g * 1.25 - bMin5.b - 125) > 0;
-                const condGreen = (avg.g * 5 - avg.b * 6 + 70) > 0;
-                const yRatio = rawAll.filter(p => p.r > 235 && p.g > 145 && p.b < 50).length / rawAll.length;
-                const isYellow = condYellowB || yRatio >= 0.05;
-                if (isHeart) id = "0";
-                else if (condRed && isYellow) id = "4";
-                else if (condRed) id = "1";
-                else if (condGreen) id = "3";
-                else id = (avg.g < avg.r) ? "5" : "2";
-                const plusRatio = rawAll.filter(p => p.r > 235 && p.g > 205 && p.b < 170).length / rawAll.length;
-                const idx = (row - 1) * 8 + col;
-                detColor[idx] = parseInt(id);
-                detPlus[idx] = (id === "4") ? (plusRatio >= 0.25 ? 1 : 0) : (id !== "0" ? (plusRatio > 0.01 ? 1 : 0) : 0);
-            }
-        }
-        curY += rowHeight;
-    }
+    const detColor = res.colors, detPlus = res.plus, detBonus = res.bonus, nextStr = res.next;
 
     // 入力欄へ反映（NEXTのプラスは写真からは分からないので変えない）
     const keepBE = document.getElementById('keep-be').checked;

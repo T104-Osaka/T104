@@ -12,6 +12,7 @@
    中身: 戻るリンク(.nav-back) / 使い方(.usage-section) / 左の入力パネル(.wrapper .side-input)
          / 小ボタン(.mini) / 探索開始ボタン(.btn) / 最高点の表示(.best-score-*) / 進捗バー(.progress-*)
    ページごとに違う部分（盤面のマスの大きさ・入力欄の並び・連鎖シミュレーション横の枠）は各ページに書く */
+.hist-section{width:95%;max-width:1280px;margin:20px auto;padding:15px;background:var(--card);border:1px solid var(--line);border-radius:10px;border-left:6px solid #e67e22;box-sizing:border-box}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;box-sizing:border-box}
 .nav-back.sim-nav{max-width:1280px;margin:0 auto 15px;width:95%}
 .nav-back.sim-nav a{font-weight:700;font-size:.95em}
@@ -156,6 +157,7 @@ table.sum td:first-child,table.sum th:first-child{text-align:left}
         <strong>2. 条件を決める</strong>: <strong>塗る色</strong>と<strong>最大なぞり数</strong>を選びます. なぞる形は なぞり消しと同じで、縦横斜めに全部つながっていて、2〜6行目に1つ以上含む必要があります.<br>
         <strong>3. 探索</strong>: 「🚀 探索開始」で、複数のWorkerが山登り法でダメージが大きいなぞり方を探します（時間は秒で指定）. C言語版（tokubetu_rule.js / .wasm と、tokubetu_rule_worker.js・tokubetu_rule_sub_worker.js）が置いてあれば自動でそちらを使い、無ければ JavaScript 版で探します（画面の「エンジン」表示で確認できます）. <strong>再</strong>は、山登り（ゆさぶって山登りする1回）を何回やったら、新しいランダムな出発点から完全にやり直すかです（空欄は 10000、0 ならやり直しません）. 結果の上位10件から「盤面に反映」で切り替えられます.<br>
         <strong>予備12（指示欄）</strong>: 「🚀 探索開始」を押したときの動きを決めます（解析シムなどと同じ）. 空欄/それ以外＝そのまま探索. <strong>w_N</strong>＝いまの内容をこのページの枠Nへ保存. <strong>r_N</strong>＝「読み込み元」で選んだ保存先の枠Nを読込. <strong>rr_N</strong>＝「読み込み元」の枠Nを2秒ごとに見に行き、盤面の1行目が前回と変わったら読み込んで探索します（探索が終わると「✅ 完了」が出て、押すと監視を再開）.<br>
+        <strong>色6〜8</strong>（盤面・NEXTの欄に入力）: 6=プリズムボール（塗れない／なぞれる（色は変わらない）／消える塊の隣で消え、1個につき全色の攻撃力の合計×3を補正なしで加算し、各色に配分して表示／同時消し数には数えない）、7=お邪魔ぷよ（塗れる／なぞれない／♡と同じく隣で消える）、8=かたぷよ（塗れる／なぞれない／隣で消えず7になる）. puyodamage と同じ扱いです.<br>
         <strong>4. 手で試す</strong>: 「塗り後の盤面」をクリック（ドラッグ可）すると、そのマスをなぞったことにして、結果とコマ送りがすぐ更新されます.<br>
         ダメージの式は ダメージシム（puyodamage）と同じです（連鎖欄＋1回まで NEXT 後の連鎖を数える・最終ブースト込み）. 探索は山登りなので、最大なぞり数が大きいほど最適解を取りこぼす可能性があります（時間を延ばす・何回か実行してください）.
     </div></div>
@@ -221,11 +223,6 @@ table.sum td:first-child,table.sum th:first-child{text-align:left}
             <div id="search-status">条件を入れて「🚀 探索開始」を押してください</div>
             <div id="engine-label" style="font-size:11px;color:var(--mut);padding:0 12px 6px">エンジン: 探索を始めると自動で判定します（C言語版 → 無ければ JavaScript 版）</div>
             <div id="cand-box"></div>
-            <div id="wr-box" style="padding:0 12px 12px;display:none">
-                <div style="font-size:12px;color:var(--mut);font-weight:700;margin:6px 0">Workerごとの結果（ボタンを押すと下に表示）</div>
-                <div id="wr-buttons" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-                <div id="wr-detail" style="margin-top:8px;overflow-x:auto"></div>
-            </div>
         </div>
 
         <div class="boards">
@@ -273,6 +270,23 @@ table.sum td:first-child,table.sum th:first-child{text-align:left}
     </div>
 </div>
 
+<!-- 🧗 山登り法の推移（Workerごと・約5秒ごとの最高点） -->
+<div class="hist-section" id="hist-section" hidden>
+    <div class="playback-title">🧗 山登り法の推移（Workerごとの最高点）</div>
+    <div id="hist-info" style="font-size:12px;color:var(--mut);margin:6px 0"></div>
+    <div id="hist-graph"></div>
+    <textarea id="hist-text" readonly rows="3" style="width:100%;box-sizing:border-box;margin-top:8px;font-size:12px"></textarea>
+    <button class="mini" onclick="copyHistory()">コピー</button> <span id="hist-copied" style="font-size:12px;color:var(--mut)"></span>
+    <div id="wr-box" style="margin-top:14px;padding-top:10px;border-top:1px solid var(--line);display:none">
+        <div style="font-size:12px;color:var(--mut);margin-bottom:6px">Workerごとの結果（ボタンを押すと下に表示）</div>
+        <div id="wr-buttons" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        <div id="wr-detail" style="margin-top:10px;overflow-x:auto"></div>
+    </div>
+</div>
+
+<script src="js/puyo_rules.js"></script>
+<script src="js/puyo_rules_next.js"></script>
+<script src="js/puyo_judge.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
 <script>
@@ -327,11 +341,12 @@ function gravity(color, plus) {
     return moved;
 }
 
-// 4つ以上つながった塊（上下左右）＋隣のハートを del に立てる。戻り値＝塊の数。_maxComp＝一番大きい塊の大きさ
+// 4つ以上つながった塊（上下左右）＋隣のハート・プリズムボール・お邪魔ぷよを del に、隣のかたぷよを _kat に立てる（かたぷよは消えずに7になる）。戻り値＝塊の数。_maxComp＝一番大きい塊の大きさ
 let _maxComp = 0;
 const _vis = new Uint8Array(48), _lst = new Int8Array(48);
+const _kat = new Uint8Array(48);   // 隣接して7になるかたぷよ
 function groupsFast(color, del) {
-    del.fill(0); _vis.fill(0);
+    del.fill(0); _vis.fill(0); _kat.fill(0);
     let groups = 0; _maxComp = 0;
     for (let i = 0; i < 48; i++) {
         const col = color[i];
@@ -345,10 +360,11 @@ function groupsFast(color, del) {
         if (t >= 4) { groups++; for (let k = 0; k < t; k++) del[_lst[k]] = 1; }
     }
     if (groups) {
+        const base = del.slice();
         for (let i = 0; i < 48; i++) {
-            if (!del[i] || color[i] === 0) continue;
+            if (!base[i] || color[i] === 0) continue;
             const nb = NB4[i];
-            for (let k = 0; k < nb.length; k++) if (color[nb[k]] === 0) del[nb[k]] = 1;
+            for (let k = 0; k < nb.length; k++) { const cc = color[nb[k]]; if (cc === 0 || cc === 6 || cc === 7) del[nb[k]] = 1; else if (cc === 8) _kat[nb[k]] = 1; }
         }
     }
     return groups;
@@ -358,22 +374,25 @@ function groupsFast(color, del) {
 function evalSet(ctx, cells) {
     const color = ctx.color, plus = ctx.plusb, del = ctx.del;
     color.set(ctx.orig); plus.set(ctx.plus);
-    for (let i = 0; i < cells.length; i++) color[cells[i]] = ctx.X;
+    for (let i = 0; i < cells.length; i++) { const t = cells[i]; if (color[t] !== 6) color[t] = ctx.X; }   // プリズムボールは塗れない
     gravity(color, plus);
     const cnt = ctx.cnt;
     let k = 0, boost = 0, raw = 0, g, hint = 0, first = true;
     const doErase = () => {
         cnt.fill(0);
-        let bAdd = 0;
+        let bAdd = 0, pr = 0;
         for (let i = 0; i < 48; i++) {
             if (!del[i]) continue;
             const w = plus[i] ? 2 : 1;
             cnt[color[i]] += w;
+            if (color[i] === 6) pr++;
             if (ctx.bonus[i]) bAdd += w;
             color[i] = -1; plus[i] = 0;
         }
+        for (let i = 0; i < 48; i++) if (_kat[i]) color[i] = 7;   // かたぷよ → お邪魔ぷよ（この連鎖では消えない）
         boost += bAdd;
         const cm = 1 + chainCoef(k) * ctx.kChain;
+        raw += 3 * pr * ctx.atkSum;                                // プリズムボール: 攻撃力の合計×3（補正なし）
         for (let c = 1; c <= 5; c++) if (cnt[c] > 0) raw += ctx.atk[c] * g * (1 + (cnt[c] - 4) * 0.15 * ctx.kSame) * cm;
     };
     while ((g = groupsFast(color, del)) > 0) {
@@ -402,7 +421,8 @@ function makeCtx(d) {
         orig: Int8Array.from(d.orig), plus: Uint8Array.from(d.plus), bonus: Uint8Array.from(d.bonus),
         nextC: Int8Array.from(d.nextC), nextP: Uint8Array.from(d.nextP), atk: Float64Array.from(d.atk),
         kSame: d.kSame, kChain: d.kChain, maxChains: d.maxChains, X: d.X, N: d.N, roundClimbs: d.roundClimbs == null ? 10000 : d.roundClimbs,
-        color: new Int8Array(48), plusb: new Uint8Array(48), del: new Uint8Array(48), cnt: new Int32Array(6), chains: 0
+        color: new Int8Array(48), plusb: new Uint8Array(48), del: new Uint8Array(48), cnt: new Int32Array(9), chains: 0, atkSum: d.atk[1] + d.atk[2] + d.atk[3] + d.atk[4] + d.atk[5],
+        noT: Uint8Array.from(d.orig, v => (v === 7 || v === 8) ? 1 : 0)
     };
 }
 
@@ -432,6 +452,7 @@ function runSearch(ctx, endTime, hooks) {
     const top = new Map();
     let evals = 0, lastPost = performance.now(), expired = false;
     const inS = new Uint8Array(48), mark = new Uint8Array(48);
+    const tv = l => traceValid(l) && !l.some(c => ctx.noT[c]);   // お邪魔ぷよ・かたぷよはなぞれない
     function ev(list) {
         evals++;
         if ((evals & 127) === 0) { const now = performance.now(); if (now >= endTime) expired = true; if (now - lastPost > 400) { lastPost = now; hooks.progress(evals, top); } }
@@ -455,7 +476,7 @@ function runSearch(ctx, endTime, hooks) {
         inS.fill(0); mark.fill(0);
         for (const c of list) inS[c] = 1;
         const out = [];
-        for (const c of list) for (const n of NB8[c]) if (!inS[n] && !mark[n]) { mark[n] = 1; out.push(n); }
+        for (const c of list) for (const n of NB8[c]) if (!inS[n] && !mark[n] && !ctx.noT[n]) { mark[n] = 1; out.push(n); }
         return out;
     }
     function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = ri(i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
@@ -463,13 +484,14 @@ function runSearch(ctx, endTime, hooks) {
         for (;;) {
             const size = rnd() < 0.5 ? 1 + ri(N) : Math.max(1, N - ri(Math.min(N, 3)));
             const list = [ri(48)];
+            if (ctx.noT[list[0]]) continue;
             let guard = 0;
             while (list.length < size && guard++ < 200) {
                 const b = boundary(list);
                 if (!b.length) break;
                 list.push(b[ri(b.length)]);
             }
-            if (traceValid(list)) return list;
+            if (tv(list)) return list;
         }
     }
     function climb(list, sc) {
@@ -483,7 +505,7 @@ function runSearch(ctx, endTime, hooks) {
             shuffle(moves);
             for (const m of moves) {
                 const cand = m[0] === 1 ? list.concat([m[1]]) : list.filter((_, i) => i !== m[2]);
-                if (m[0] === -1 && !traceValid(cand)) continue;
+                if (m[0] === -1 && !tv(cand)) continue;
                 const v = ev(cand);
                 if (v > sc + 1e-9) { list = cand; sc = v; improved = true; break; }
                 if (expired) break;
@@ -494,7 +516,7 @@ function runSearch(ctx, endTime, hooks) {
                 shuffle(swaps);
                 for (const [i, n] of swaps) {
                     const cand = list.filter((_, j) => j !== i); cand.push(n);
-                    if (!traceValid(cand)) continue;
+                    if (!tv(cand)) continue;
                     const v = ev(cand);
                     if (v > sc + 1e-9) { list = cand; sc = v; improved = true; break; }
                     if (expired) break;
@@ -513,7 +535,7 @@ function runSearch(ctx, endTime, hooks) {
                 if (kind === 0 && cur.length < N && b.length) cand = cur.concat([b[ri(b.length)]]);
                 else if (kind === 1 && cur.length > 1) { const i = ri(cur.length); cand = cur.filter((_, j) => j !== i); }
                 else if (kind === 2 && b.length) { const i = ri(cur.length); cand = cur.filter((_, j) => j !== i); cand.push(b[ri(b.length)]); }
-                if (cand && traceValid(cand)) { cur = cand; break; }
+                if (cand && tv(cand)) { cur = cand; break; }
             }
         }
         return cur;
@@ -536,8 +558,19 @@ function runSearch(ctx, endTime, hooks) {
 /* ==========================================================================
    定数
    ========================================================================== */
-const COLORS = ["#ffdae9", "#ff3e3e", "#4da3ff", "#3eff3e", "#ffeb3e", "#ae81ff"];
-const NAMES  = ["♡", "赤", "青", "緑", "黄", "紫"];
+// 色は共通CSS（css/base.css の --p-r など）から読む。0=♡ 1〜5=赤青緑黄紫 6=プリズムボール 7=お邪魔ぷよ 8=かたぷよ
+const cssColor = (v, fb) => (getComputedStyle(document.documentElement).getPropertyValue(v).trim() || fb);
+const COLORS = [cssColor('--p-h', '#f9a8d4'), cssColor('--p-r', '#e5484d'), cssColor('--p-b', '#3b82f6'), cssColor('--p-g', '#22c55e'), cssColor('--p-y', '#eab308'), cssColor('--p-p', '#a855f7'),
+                cssColor('--p-w', '#ffffff'), cssColor('--p-o', '#9aa0a6'), cssColor('--p-k', '#4b5057')];
+const NAMES  = ["♡", "赤", "青", "緑", "黄", "紫", "プリズム", "お邪魔", "かたぷよ"];
+const SPECIAL_MARK = { 6: "◇", 7: "", 8: "" };           // 7・8は色だけ（文字なし）
+function styleCell(el, color, plus) {
+    if (color === -1 || color == null) { el.style.backgroundColor = "transparent"; el.textContent = ""; el.style.color = ""; el.style.textShadow = ""; el.style.boxShadow = ""; return; }
+    el.style.backgroundColor = COLORS[color];
+    el.textContent = color >= 6 ? SPECIAL_MARK[color] : (plus ? "+" : "");
+    el.style.color = color === 6 ? "#555" : "";
+    el.style.textShadow = color === 6 ? "none" : ""; el.style.boxShadow = color === 6 ? "inset 0 0 0 1px #000" : "";
+}
 const fm  = x => Math.round(x * 100) / 100;
 const fmt = x => fm(x).toLocaleString('ja-JP', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
@@ -592,7 +625,7 @@ function readInput() {
     for (let r = 0; r < 6; r++) {
         const cs = fval(r).padStart(8, '0'), ps = fval(6 + r).padStart(8, '0'), bs = fval(12 + r).padStart(8, '0');
         for (let c = 0; c < 8; c++) {
-            let v = parseInt(cs[c]); if (isNaN(v) || v < 0 || v > 5) v = 0;
+            let v = parseInt(cs[c]); if (isNaN(v) || v < 0 || v > 8) v = 0;
             orig[r * 8 + c] = v;
             plus[r * 8 + c] = (ps[c] === '1' || ps[c] === '+') ? 1 : 0;
             bonus[r * 8 + c] = (bs[c] === '1' || bs[c] === 'B') ? 1 : 0;
@@ -601,7 +634,7 @@ function readInput() {
     const nc = fval(18).padStart(8, '1'), np = fval(19).padStart(8, '0');
     const nextC = [], nextP = [];
     for (let c = 0; c < 8; c++) {
-        let v = parseInt(nc[c]); if (isNaN(v) || v < 0 || v > 5) v = 1;
+        let v = parseInt(nc[c]); if (isNaN(v) || v < 0 || v > 8) v = 1;
         nextC.push(v); nextP.push((np[c] === '1' || np[c] === '+') ? 1 : 0);
     }
     const atk = [0];
@@ -632,9 +665,7 @@ function drawCell(gridId, i, color, plus, bonus, changed) {
     cell.classList.toggle('bo', !!bonus);
     const pz = cell.firstElementChild;
     pz.classList.toggle('chg', !!changed);
-    if (color === -1) { pz.style.backgroundColor = "transparent"; pz.textContent = ""; return; }
-    pz.style.backgroundColor = COLORS[color];
-    pz.textContent = plus ? "+" : "";
+    styleCell(pz, color, plus);
 }
 function markCells(gridId, cls, set) {
     for (let i = 0; i < 48; i++) {
@@ -646,8 +677,7 @@ function drawNextRow(rowId, colors, plus) {
     for (let c = 0; c < 8; c++) {
         const cell = document.getElementById(`${rowId}-${c}`);
         if (!cell) continue;
-        if (colors[c] === -1 || colors[c] == null) { cell.style.backgroundColor = "transparent"; cell.textContent = ""; }
-        else { cell.style.backgroundColor = COLORS[colors[c]]; cell.textContent = plus[c] ? "+" : ""; }
+        styleCell(cell, colors[c], plus[c]);
     }
 }
 
@@ -655,8 +685,9 @@ function drawNextRow(rowId, colors, plus) {
    コマ送り用の連鎖シミュレーション（探索の evalSet と同じルール）
    ========================================================================== */
 function findGroups(color) {
-    const del = new Uint8Array(48), g = groupsFast(color, del);
-    return { del, groups: g };
+    const del = new Uint8Array(48), g = groupsFast(color, del), kat = [];
+    for (let i = 0; i < 48; i++) if (_kat[i]) kat.push(i);
+    return { del, groups: g, kat };
 }
 
 // S: {orig, plus, bonus, nextC, nextP, trace[], X, atk[6], kSame, kChain, maxChains}
@@ -664,7 +695,7 @@ function simulate(S) {
     const color = S.orig.slice(), plus = S.plus.slice();
     const next = S.nextC.map((c, i) => [{ color: c, plus: S.nextP[i] }]);
     const out = [];
-    const cum = { cnt1: [0, 0, 0, 0, 0, 0], cnt3: [0, 0, 0, 0, 0, 0], dmg: [0, 0, 0, 0, 0, 0], boost: 0, raw: 0 };
+    const cum = { cnt1: new Array(9).fill(0), cnt3: new Array(9).fill(0), dmg: new Array(9).fill(0), boost: 0, raw: 0 };
     const total = () => cum.raw * (1 + Math.min(cum.boost * 0.04, 2.0));
     function snap(desc, extra) {
         out.push(Object.assign({
@@ -675,34 +706,42 @@ function simulate(S) {
         }, extra || {}));
     }
     function erase(g, k) {
-        const cnt1 = [0, 0, 0, 0, 0, 0], cnt3 = [0, 0, 0, 0, 0, 0], hit = [];
-        let boostAdd = 0;
+        const cnt1 = new Array(9).fill(0), cnt3 = new Array(9).fill(0), nC = new Array(9).fill(0), hit = [];
+        let boostAdd = 0, prism = 0;
         for (let i = 0; i < 48; i++) {
             if (!g.del[i]) continue;
             const w = plus[i] ? 2 : 1, c = color[i];
             cnt1[c] += w; cnt3[c] += w * (S.bonus[i] ? 3 : 1);
-            if (S.bonus[i]) boostAdd += w;                    // ブーストの数には♡も数える
+            if (c >= 1 && c <= 5) nC[c] += w;                 // 同時消し数は色1〜5だけ
+            if (c === 6) prism++;
+            if (S.bonus[i]) boostAdd += w;                    // ブーストの数には♡・プリズム・お邪魔も数える
             hit.push(i); color[i] = -1; plus[i] = 0;
         }
+        (g.kat || []).forEach(i => { color[i] = 7; });       // かたぷよ → お邪魔ぷよ（この連鎖では消えない）
         const chainMult = 1 + chainCoef(k) * S.kChain;
-        const perColor = [0, 0, 0, 0, 0, 0], sameMult = [0, 0, 0, 0, 0, 0];
+        const perColor = new Array(9).fill(0), sameMult = new Array(9).fill(0), ownPts = new Array(9).fill(0), prismShare = new Array(9).fill(0);
         let stepDmg = 0;
-        for (let c = 1; c <= 5; c++) {                       // ♡は同時消し数に数えない
-            if (cnt1[c] > 0) {
-                sameMult[c] = 1 + (cnt1[c] - 4) * 0.15 * S.kSame;
-                perColor[c] = S.atk[c] * g.groups * sameMult[c] * chainMult;
-                stepDmg += perColor[c];
+        for (let c = 1; c <= 5; c++) {
+            if (nC[c] > 0) {
+                sameMult[c] = 1 + (nC[c] - 4) * 0.15 * S.kSame;
+                ownPts[c] = S.atk[c] * g.groups * sameMult[c] * chainMult;
             }
+            prismShare[c] = 3 * prism * S.atk[c];             // プリズムボール: 各色の攻撃力×3（補正なし）を、その色に配分する
+            perColor[c] = ownPts[c] + prismShare[c];
+            stepDmg += perColor[c];
         }
-        for (let c = 0; c < 6; c++) { cum.cnt1[c] += cnt1[c]; cum.cnt3[c] += cnt3[c]; cum.dmg[c] += perColor[c]; }
+        for (let c = 0; c < 9; c++) { cum.cnt1[c] += cnt1[c]; cum.cnt3[c] += cnt3[c]; cum.dmg[c] += perColor[c]; }
         cum.boost += boostAdd; cum.raw += stepDmg;
-        snap(`第 ${k} 連鎖消滅 (分離${g.groups}・連鎖×${fm(chainMult)}・+${fmt(stepDmg)})`,
-            { hit, chain: k, info: { k, groups: g.groups, chainMult, boostAdd, stepDmg, sameMult, cnt1 }, erased: cnt1 });
+        snap(stepDesc(k, g.groups, chainMult, stepDmg, prism),
+            { hit, chain: k, info: { k, groups: g.groups, chainMult, boostAdd, stepDmg, sameMult, cnt1, nC, prism, prismShare }, erased: cnt1 });
+    }
+    function stepDesc(k, groups, chainMult, stepDmg, prism) {
+        return `第 ${k} 連鎖消滅 (分離${groups}・連鎖×${fm(chainMult)}${prism ? `・プリズム${prism}個` : ''}・+${fmt(stepDmg)})`;
     }
 
     snap("元の盤面", {});
     if (S.trace.length) {                                    // なぞったマスを指定色に塗る（消えない）
-        S.trace.forEach(t => { color[t] = S.X; });
+        S.trace.forEach(t => { if (color[t] !== 6) color[t] = S.X; });
         snap(`なぞりぬりかえ (${S.trace.length}個を${NAMES[S.X]}に)`, { tap: S.trace.slice(), hit: S.trace.slice() });
     }
     if (gravity(color, plus)) snap("ぷよ落下");
@@ -731,7 +770,8 @@ function simulate(S) {
     out.forEach(st => {
         if (st.info) {
             st.info.stepDmg *= fMult;
-            st.desc = `第 ${st.info.k} 連鎖消滅 (分離${st.info.groups}・連鎖×${fm(st.info.chainMult)}・+${fmt(st.info.stepDmg)})`;
+            st.info.prismShare = st.info.prismShare.map(v => v * fMult);
+            st.desc = stepDesc(st.info.k, st.info.groups, st.info.chainMult, st.info.stepDmg, st.info.prism);
         }
         st.score = st.cum.raw * fMult;
         st.cum.dmg = st.cum.dmg.map(v => v * fMult);
@@ -750,24 +790,25 @@ function renderAll() {
     const inp = readInput(), X = paintColor, N = maxTrace();
     const cells = traceList();
     const painted = inp.orig.slice();
-    cells.forEach(i => { painted[i] = X; });
+    cells.forEach(i => { if (inp.orig[i] !== 6) painted[i] = X; });
 
     for (let i = 0; i < 48; i++) {
         drawCell('orig-board', i, inp.orig[i], inp.plus[i], inp.bonus[i], false);
-        drawCell('paint-board', i, painted[i], inp.plus[i], inp.bonus[i], traceSet.has(i) && inp.orig[i] !== X);
+        drawCell('paint-board', i, painted[i], inp.plus[i], inp.bonus[i], traceSet.has(i) && inp.orig[i] !== X && inp.orig[i] !== 6);
     }
     markCells('paint-board', 'tr', traceSet);
     for (let c = 0; c < 8; c++) {
         const cell = document.getElementById(`next-row-${c}`);
-        cell.style.backgroundColor = COLORS[inp.nextC[c]]; cell.textContent = inp.nextP[c] ? "+" : "";
+        styleCell(cell, inp.nextC[c], inp.nextP[c]);
     }
 
-    const changed = cells.filter(i => inp.orig[i] !== X).length;
+    const changed = cells.filter(i => inp.orig[i] !== X && inp.orig[i] !== 6).length;
     const msgs = [];
     msgs.push(['', `塗る色: <b>${NAMES[X]}</b>　なぞり <b>${cells.length}</b>個（色が変わる ${changed}個）／ 最大 ${N}個`]);
     if (!cells.length) msgs.push(['warn', 'なぞるマスが選ばれていません. 盤面をクリック（ドラッグ可）するか、「🚀 探索開始」で最適なぞりを探します.']);
     else {
         if (cells.length > N) msgs.push(['warn', `⚠️ 最大なぞり数(${N}個)より多く選んでいます.`]);
+        if (cells.some(i => inp.orig[i] === 7 || inp.orig[i] === 8)) msgs.push(['warn', '⚠️ お邪魔ぷよ・かたぷよはなぞれません（探索では除外されます）.']);
         if (!traceValid(cells)) {
             const startOk = cells.some(i => i >= 8);
             if (!startOk) msgs.push(['warn', '⚠️ 2〜6行目を1つ以上含める必要があります（1行目だけになっています）.']);
@@ -800,8 +841,8 @@ function renderSummary(f, inp) {
         `<div class="kpi"><div class="kl">消えた個数（BE3倍あり）</div><div class="kv">${n3}</div><small>解析シムの点数と同じ</small></div>` +
         `<div class="kpi"><div class="kl">ブースト（BEで消えた数）</div><div class="kv">${f.boost}</div><small>+${fm(f.up * 100)}%（上限+200%）</small></div>`;
     let h = '<tr><th>色</th><th>個数（BE3倍なし）</th><th>個数（BE3倍あり）</th><th>ダメージ(ブースト込み)</th></tr>';
-    [1, 2, 3, 4, 5, 0].forEach(c => {
-        h += `<tr><td><span class="erase-dot" style="background:${COLORS[c]};display:inline-block;vertical-align:middle;margin-right:6px"></span>${NAMES[c]}</td><td>${f.cnt1[c]}</td><td>${f.cnt3[c]}</td><td>${c === 0 ? '—' : fmt(f.dmg[c])}</td></tr>`;
+    [1, 2, 3, 4, 5, 0, 6, 7].filter(c => c <= 5 || f.cnt1[c] > 0).forEach(c => {
+        h += `<tr><td><span class="erase-dot" style="background:${COLORS[c]};display:inline-block;vertical-align:middle;margin-right:6px"></span>${NAMES[c]}</td><td>${f.cnt1[c]}</td><td>${f.cnt3[c]}</td><td>${c === 0 || c >= 6 ? '—' : fmt(f.dmg[c])}</td></tr>`;
     });
     h += `<tr><th>合計</th><th>${n1}</th><th>${n3}</th><th>${fmt(f.damage)}</th></tr>`;
     document.getElementById('sum-table').innerHTML = h;
@@ -827,7 +868,7 @@ function renderStep() {
         `<small>ダメージは最終ブースト ×${fm(st.finalMult || 1)} 込み</small><br>合計 BE3倍なし <b>${sum(cu.cnt1)}</b>個 ／ BE3倍あり <b>${sum(cu.cnt3)}</b>個</div>`;
     html += [1, 2, 3, 4, 5, 0].map(k => {
         const now = st.erased ? st.erased[k] : 0, c1 = cu.cnt1[k], c3 = cu.cnt3[k];
-        const sub = (inf && k >= 1 && inf.cnt1[k] > 0) ? `<br><small>同時${inf.cnt1[k]}個 ×${fm(inf.sameMult[k])}</small>` : '<br><small>&nbsp;</small>';
+        const sub = (inf && k >= 1 && k <= 5 && (inf.nC[k] > 0 || inf.prismShare[k] > 0)) ? `<br><small>同時${inf.nC[k]}個 ×${fm(inf.sameMult[k])}${inf.prismShare[k] ? ` プリズム+${fmt(inf.prismShare[k])}` : ''}</small>` : '<br><small>&nbsp;</small>';
         return `<div class="erase-chip${now > 0 ? ' hot' : ''}${c1 === 0 ? ' zero' : ''}"><span class="erase-dot" style="background:${COLORS[k]}"></span><span>${NAMES[k]} 計<b>${c1}</b>個${now > 0 ? ` <span class="erase-now">(+${now})</span>` : ''}<br><small>BE3倍あり <b>${c3}</b>個${k >= 1 ? ` ・ ${fmt(cu.dmg[k])}` : ''}</small>${sub}</span></div>`;
     }).join('');
     document.getElementById('playback-erase').innerHTML = html;
@@ -853,7 +894,7 @@ function toggleAuto() {
    クリックでなぞりを選ぶ
    ========================================================================== */
 let dragAct = null, dragging = false;
-function applyTool(i) { if (dragAct === 'add') traceSet.add(i); else traceSet.delete(i); }
+function applyTool(i) { if (dragAct === 'add') { const o = readInput().orig[i]; if (o !== 7 && o !== 8) traceSet.add(i); } else traceSet.delete(i); }   // お邪魔ぷよ・かたぷよはなぞれない
 function cellFromPoint(x, y) {
     const el = document.elementFromPoint(x, y);
     const cell = el && el.closest ? el.closest('#paint-board .data-cell') : null;
@@ -982,7 +1023,7 @@ function runNormalSearch() {
     if (searching) return;
     const inp = readInput();
     const job = { inp, seconds: numOr('search-sec', 30, 1, 600), roundClimbs: roundClimbsVal(), X: paintColor, N: maxTrace() };
-    cands = []; searching = true; poolBest = new Map(); poolPer = []; wrSel = -1; wrSig = ''; renderWorkerResults();
+    cands = []; searching = true; poolBest = new Map(); poolPer = []; wrSel = -1; wrSig = ''; resetHistory(); renderWorkerResults();
     document.getElementById('best-score-display').textContent = '探索中'; showProgressBar(job.seconds);
     document.getElementById('search-btn').textContent = '⏹ 停止';
     setSearchStatus('探索の準備中...');
@@ -1055,6 +1096,56 @@ function finishSearch() {
     if (cands.length) applyCand(0);
     autoSearchFinished();
 }
+
+// 🧗 山登り法の推移: 探索中に約5秒ごとに、Workerごとの最高点を記録してグラフにする
+let histData = {}, histNext = 5;
+function resetHistory() { histData = {}; histNext = 5; const h = document.getElementById('hist-section'); if (h) h.hidden = true; }
+function workerBest(w) { const l = poolPer[w] || []; let b = -Infinity; for (const c of l) if (c.sc > b) b = c.sc; return b; }
+function recordHistory(t) {
+    for (let w = 0; w < poolPer.length; w++) {
+        const b = workerBest(w); if (!(b > -Infinity)) continue;
+        const d = histData[w + 1] || (histData[w + 1] = { times: [], scores: [] });
+        if (d.times.length && d.times[d.times.length - 1] === t) d.scores[d.scores.length - 1] = b; else { d.times.push(t); d.scores.push(b); }
+    }
+}
+function updateHistory(el, final) {
+    while (el >= histNext) { recordHistory(histNext); histNext += 5; }
+    if (final) recordHistory(Math.max(1, Math.round(el)));
+    renderHistory();
+}
+function renderHistory() {
+    const ws = Object.keys(histData).map(Number).sort((a, b) => a - b);
+    if (!ws.length || searching) return;               // 探索が終わってから表示する（解析シムと同じ）
+    document.getElementById('hist-section').hidden = false;
+    document.getElementById('hist-info').textContent = `Worker ${ws.length} 個ぶんの推移（約5秒ごと・最終点は完了時）`;
+    const parts = [];
+    ws.forEach(w => histData[w].times.forEach((t, i) => parts.push(`worker${w},${t}s:${fmt(histData[w].scores[i])}`)));
+    document.getElementById('hist-text').value = parts.join(', ');
+    let tMax = 5, sMin = Infinity, sMax = 0;
+    ws.forEach(w => histData[w].times.forEach((t, i) => { tMax = Math.max(tMax, t); sMin = Math.min(sMin, histData[w].scores[i]); sMax = Math.max(sMax, histData[w].scores[i]); }));
+    if (sMin === sMax) { sMin = Math.max(0, sMin - 5); sMax += 5; }
+    const W = 640, H = 260, L = 52, R = 12, T = 12, B = 30;
+    const X = t => L + (W - L - R) * t / tMax, Y = s => H - B - (H - T - B) * (s - sMin) / (sMax - sMin);
+    const colors = ["#e5484d", "#3b82f6", "#22c55e", "#eab308", "#a855f7", "#f08c00", "#15aabf", "#868e96"];
+    let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;color:var(--fg)" xmlns="http://www.w3.org/2000/svg">`;
+    svg += `<line x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}" stroke="currentColor" opacity=".4"/><line x1="${L}" y1="${T}" x2="${L}" y2="${H - B}" stroke="currentColor" opacity=".4"/>`;
+    svg += `<text x="${L - 6}" y="${Y(sMax) + 4}" text-anchor="end" font-size="11" fill="currentColor">${fmt(sMax)}</text><text x="${L - 6}" y="${Y(sMin) + 4}" text-anchor="end" font-size="11" fill="currentColor">${fmt(sMin)}</text>`;
+    const xs = new Set(); ws.forEach(w => histData[w].times.forEach(t => xs.add(t)));
+    [...xs].sort((a, b) => a - b).forEach(t => { svg += `<text x="${X(t)}" y="${H - B + 14}" text-anchor="middle" font-size="11" fill="currentColor">${t}s</text>`; });
+    ws.forEach((w, k) => {
+        const c = colors[(w - 1) % colors.length], d = histData[w];
+        svg += `<polyline fill="none" stroke="${c}" stroke-width="2" points="${d.times.map((t, i) => X(t) + ',' + Y(d.scores[i])).join(' ')}"/>`;
+        d.times.forEach((t, i) => { svg += `<circle cx="${X(t)}" cy="${Y(d.scores[i])}" r="3" fill="${c}"/>`; });
+        if (ws.length <= 12) svg += `<text x="${L + 8 + k * 78}" y="${T + 8}" font-size="11" fill="${c}">● worker${w}</text>`;
+    });
+    document.getElementById('hist-graph').innerHTML = svg + '</svg>';
+}
+function copyHistory() {
+    const ta = document.getElementById('hist-text');
+    const done = () => { document.getElementById('hist-copied').textContent = 'コピーしました'; setTimeout(() => document.getElementById('hist-copied').textContent = '', 1500); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(done);
+    else { ta.select(); document.execCommand('copy'); done(); }
+}
 function sortedCands() { return [...poolBest.values()].sort((a, b) => b.sc - a.sc || a.cells.length - b.cells.length); }
 function updateSearchView(final) {
     const evals = poolEvals.reduce((a, b) => a + b, 0), el = (performance.now() - poolStart) / 1000;
@@ -1065,13 +1156,14 @@ function updateSearchView(final) {
     setSearchStatus(`${final ? '完了' : '探索中'}（${engineName}）: ${fmt(el)}秒 ／ ${evals.toLocaleString()}通り評価（${Math.round(evals / Math.max(el, 0.001)).toLocaleString()}/秒）／ 最高ダメージ ${best}`);
     renderCands();
     renderWorkerResults();
+    updateHistory(el, final);
 }
 // 🔍 Workerごとの結果: ボタンを並べ、押したWorkerの上位をその下に表示（押すとその なぞり方 を盤面に反映）
 function wrList(w) { return (poolPer[w] || []).slice().sort((a, b) => b.sc - a.sc || a.cells.length - b.cells.length).slice(0, 5); }
 function renderWorkerResults() {
     const box = document.getElementById('wr-box');
     const n = poolPer.length;
-    if (!n) { box.style.display = 'none'; document.getElementById('wr-buttons').innerHTML = ''; document.getElementById('wr-detail').innerHTML = ''; return; }
+    if (!n || searching) { box.style.display = 'none'; document.getElementById('wr-buttons').innerHTML = ''; document.getElementById('wr-detail').innerHTML = ''; return; }
     box.style.display = '';
     const cur = traceList().join(',');
     const sig = poolPer.map(l => (l && l.length) ? l[0].sc + ':' + l.length : '-').join('|') + '#' + wrSel + '#' + cur;
@@ -1204,9 +1296,9 @@ function saveSlot(nOverride) {
         .catch(err => { console.error(err); setStatus('保存エラー: ' + err.message); });
 }
 
-/* 📸 写真から読み込み（puyodamage と同じ判定） */
+/* 📸 写真から読み込み（共通の判定 js/puyo_judge.js） */
 /* ==========================================================================
-   📸 写真から読み込み（puyodamage と同じ判定）
+   📸 写真から読み込み（共通の判定 js/puyo_judge.js）
    ========================================================================== */
 const ocrCanvas = document.getElementById('ocr-canvas');
 const ocrCtx = ocrCanvas.getContext('2d');
@@ -1223,138 +1315,18 @@ function handleOcrImage(file) {
 }
 
 function analyzeImage(img) {
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = img.width; tempCanvas.height = img.height;
-    const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
-    tempCtx.drawImage(img, 0, 0);
-    const data = tempCtx.getImageData(0, 0, img.width, img.height).data;
-    const width = img.width, height = img.height;
+    // 画像の判定は共通ファイル js/puyo_judge.js（ルールは js/puyo_rules.js / js/puyo_rules_next.js）が担当
+    if (!window.PuyoJudge) { setStatus('js/puyo_judge.js を読み込めませんでした'); return; }
+    const res = PuyoJudge.analyzeImage(img);
+    if (res.error) { setStatus(res.error); return; }
 
-    // 1. 垂直境界検知
-    const allRowCounts = [];
-    for (let y = 0; y < height; y++) {
-        const u = new Set();
-        for (let x = 0; x < width; x++) { const i = (y * width + x) * 4; u.add((data[i] << 16) | (data[i + 1] << 8) | data[i + 2]); }
-        allRowCounts.push(u.size);
-    }
-    let topCutY = 0, bottomCutY = height, foundPlateau = false, lowCountRows = 0;
-    const scanStartY = Math.floor(height * 0.5), limitY = Math.floor(height * 0.8);
-    for (let y = scanStartY; y < height; y++) {
-        if (!foundPlateau) {
-            if (allRowCounts[y] <= 40) { lowCountRows++; if (lowCountRows >= 3) foundPlateau = true; } else lowCountRows = 0;
-        } else if (topCutY === 0) { if (allRowCounts[y] >= 70) topCutY = y; }
-        if (y >= limitY && allRowCounts[y] <= 40) { bottomCutY = y; break; }
-    }
-    const finalHeight = bottomCutY - topCutY;
-    const aTop = Math.floor(topCutY + finalHeight * 0.25), aBottom = Math.floor(bottomCutY - finalHeight * 0.25);
-
-    // 2. 水平境界検知
-    const colCounts = [];
-    for (let x = 0; x < width; x++) {
-        const u = new Set();
-        for (let y = aTop; y < aBottom; y++) { const i = (y * width + x) * 4; u.add((data[i] << 16) | (data[i + 1] << 8) | data[i + 2]); }
-        colCounts.push(u.size);
-    }
-    let leftX = 0, fGap = false, lLow = 0;
-    for (let x = 0; x < width; x++) {
-        if (!fGap) { if (colCounts[x] <= 10) { lLow++; if (lLow >= 3) fGap = true; } else lLow = 0; }
-        else if (colCounts[x] >= 40) { leftX = x; break; }
-    }
-    let rightX = width, rLow = 0;
-    for (let x = Math.floor(width * 0.7); x < width; x++) {
-        if (colCounts[x] <= 10) { rLow++; if (rLow >= 3) { rightX = x - 1; break; } } else rLow = 0;
-    }
-    const finalWidth = rightX - leftX;
-    if (finalWidth <= 0 || finalHeight <= 0) { setStatus('盤面を見つけられませんでした'); return; }
-
-    ocrCanvas.width = finalWidth; ocrCanvas.height = finalHeight;
-    ocrCtx.drawImage(img, leftX, topCutY, finalWidth, finalHeight, 0, 0, finalWidth, finalHeight);
+    // 切り出した盤面のプレビュー
+    const bd = res.board;
+    ocrCanvas.width = bd.w; ocrCanvas.height = bd.h;
+    ocrCtx.drawImage(img, bd.left, bd.top, bd.w, bd.h, 0, 0, bd.w, bd.h);
     document.getElementById('ocr-preview-area').style.display = 'flex';
 
-    // 3. マスごとの判定
-    const COLOR_PALETTE = { "1": { r: 210, g: 50, b: 50 }, "2": { r: 50, g: 100, b: 210 }, "3": { r: 50, g: 160, b: 50 }, "4": { r: 220, g: 200, b: 50 }, "5": { r: 150, g: 50, b: 180 } };
-    const yRatios = [1, 2, 2, 2, 2, 2, 2];
-    const uH = finalHeight / 13, uW = finalWidth / 8;
-    let curY = 0;
-    const detColor = new Array(48).fill(0), detPlus = new Array(48).fill(0), detBonus = new Array(48).fill(0);
-    let nextStr = "";
-
-    for (let row = 0; row < 7; row++) {
-        const rowHeight = yRatios[row] * uH;
-        for (let col = 0; col < 8; col++) {
-            let sX, eX, sY, eY;
-            const cellLeft = leftX + col * uW, cellRight = leftX + (col + 1) * uW;
-            const cellTop = topCutY + curY, cellBottom = topCutY + curY + rowHeight;
-            if (row === 0) {
-                sX = cellLeft + uW * 0.33; eX = cellLeft + uW * 0.48;
-                sY = cellTop + rowHeight * 0.33; eY = cellTop + rowHeight * 0.55;
-            } else {
-                sX = cellLeft + uW * 0.25; eX = cellLeft + uW * 0.75;
-                sY = cellTop + rowHeight * 0.25; eY = cellTop + rowHeight * 0.75;
-            }
-            // ボーナスエリア: 四隅のフチの白飛び
-            if (row >= 1) {
-                let sr = 0, sg = 0, cnt = 0;
-                const off = 4;
-                [[cellLeft + off, cellTop + off], [cellRight - off, cellTop + off], [cellLeft + off, cellBottom - off], [cellRight - off, cellBottom - off]].forEach(([x, y]) => {
-                    const px = Math.floor(x), py = Math.floor(y);
-                    if (px >= 0 && px < width && py >= 0 && py < height) { const idx = (py * width + px) * 4; sr += data[idx]; sg += data[idx + 1]; cnt++; }
-                });
-                if (cnt > 0 && sr / cnt >= 200 && sg / cnt >= 195) detBonus[(row - 1) * 8 + col] = 1;
-            }
-            // 平均色など
-            let sumR = 0, sumG = 0, sumB = 0, count = 0;
-            for (let py = Math.floor(sY); py < Math.floor(eY); py++) for (let px = Math.floor(sX); px < Math.floor(eX); px++) {
-                const i = (py * width + px) * 4, r = data[i], g = data[i + 1], b = data[i + 2];
-                if (r > 240 && g > 240 && b > 240) continue;
-                sumR += r; sumG += g; sumB += b; count++;
-            }
-            const mi = (Math.floor((sY + eY) / 2) * width + Math.floor((sX + eX) / 2)) * 4;
-            if (count === 0) { sumR = data[mi]; sumG = data[mi + 1]; sumB = data[mi + 2]; count = 1; }
-            const avg = { r: sumR / count, g: sumG / count, b: sumB / count };
-            const rawAll = [], pixels = [];
-            for (let py = Math.floor(sY); py < Math.floor(eY); py++) for (let px = Math.floor(sX); px < Math.floor(eX); px++) {
-                const i = (py * width + px) * 4, r = data[i], g = data[i + 1], b = data[i + 2];
-                rawAll.push({ r, g, b });
-                if (r > 240 && g > 240 && b > 240) continue;
-                pixels.push({ r, g, b });
-            }
-            if (!pixels.length) pixels.push({ r: data[mi], g: data[mi + 1], b: data[mi + 2] });
-            if (!rawAll.length) rawAll.push({ r: data[mi], g: data[mi + 1], b: data[mi + 2] });
-            const top5 = (arr, key, asc) => {
-                const s = [...arr].sort((a, b) => asc ? a[key] - b[key] : b[key] - a[key]).slice(0, Math.min(5, arr.length));
-                const t = s.reduce((a, p) => ({ r: a.r + p.r, g: a.g + p.g, b: a.b + p.b }), { r: 0, g: 0, b: 0 });
-                return { r: t.r / s.length, g: t.g / s.length, b: t.b / s.length };
-            };
-            let id = "0";
-            if (row === 0) {
-                let best = Infinity;
-                for (const k in COLOR_PALETTE) {
-                    const t = COLOR_PALETTE[k], d = Math.hypot(avg.r - t.r, avg.g - t.g, avg.b - t.b);
-                    if (d < best) { best = d; id = k; }
-                }
-                nextStr += id;
-            } else {
-                const bMax5 = top5(pixels, 'b', false), bMin5 = top5(pixels, 'b', true), gMin5 = top5(pixels, 'g', true);
-                const isHeart = avg.b >= 200 && avg.r >= 220 && bMax5.g <= 225 && bMin5.r <= 227 && bMin5.b >= 124 && gMin5.b <= 200 && gMin5.r >= 173;
-                const condRed = (avg.r * 1.44 - avg.b - 138) > 0;
-                const condYellowB = (bMin5.g * 1.25 - bMin5.b - 125) > 0;
-                const condGreen = (avg.g * 5 - avg.b * 6 + 70) > 0;
-                const yRatio = rawAll.filter(p => p.r > 235 && p.g > 145 && p.b < 50).length / rawAll.length;
-                const isYellow = condYellowB || yRatio >= 0.05;
-                if (isHeart) id = "0";
-                else if (condRed && isYellow) id = "4";
-                else if (condRed) id = "1";
-                else if (condGreen) id = "3";
-                else id = (avg.g < avg.r) ? "5" : "2";
-                const plusRatio = rawAll.filter(p => p.r > 235 && p.g > 205 && p.b < 170).length / rawAll.length;
-                const idx = (row - 1) * 8 + col;
-                detColor[idx] = parseInt(id);
-                detPlus[idx] = (id === "4") ? (plusRatio >= 0.25 ? 1 : 0) : (id !== "0" ? (plusRatio > 0.01 ? 1 : 0) : 0);
-            }
-        }
-        curY += rowHeight;
-    }
+    const detColor = res.colors, detPlus = res.plus, detBonus = res.bonus, nextStr = res.next;
 
     // 入力欄へ反映（NEXTのプラスは写真からは分からないので変えない）
     const keepBE = document.getElementById('keep-be').checked;
@@ -1401,6 +1373,29 @@ window.addEventListener('DOMContentLoaded', () => {
     setColor(paintColor);
     setTimeout(startSearch, 670);                            // 解析シムなどと同じ: 開いた直後に「探索開始」相当（予備12が空なら そのまま探索、rr_N と書いてあれば監視開始）
 });
+</script>
+<script>
+/* プリズムボール（白）の黒い縁: 背景が白のぷよにだけ付け、色が変わったら必ず外す（描画の経路ごとに外し忘れないよう、style の変化を見て揃える） */
+(function () {
+  const EDGE = 'inset 0 0 0 1px #000';
+  const EDGEN = (() => { const t = document.createElement('span'); t.style.boxShadow = EDGE; return t.style.boxShadow; })();   // ブラウザが整えた形（比べる用）
+  const norm = (c) => { const t = document.createElement('span'); t.style.backgroundColor = c; return t.style.backgroundColor; };
+  const white = () => norm(getComputedStyle(document.documentElement).getPropertyValue('--p-w').trim() || '#ffffff');
+  let W = null;
+  const fix = (el) => {
+    if (!el || !el.style) return;
+    if (W === null) W = white();
+    const on = el.style.backgroundColor === W && !el.children.length && el.offsetWidth > 0 && el.offsetWidth < 80 && !el.closest('button, input, select, textarea, label');
+    const cur = el.style.boxShadow;
+    if (on) { if (cur !== EDGEN) el.style.boxShadow = EDGE; }
+    else if (cur === EDGEN) el.style.boxShadow = '';
+  };
+  const start = () => {
+    new MutationObserver((ms) => { for (const m of ms) fix(m.target); }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['style'] });
+    document.querySelectorAll('[style]').forEach(fix);
+  };
+  if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+})();
 </script>
 </body>
 </html>
